@@ -21,6 +21,28 @@ Split bills fairly among friends with an itemized breakdown. Add friends (with o
 
 ---
 
+## 📸 Screenshots
+
+Here’s what the Bill Splitter app looks like in action:
+
+### Main Interface
+![Main Interface](./public/screenshot-main.png)
+
+### Itemized Split Table
+![Itemized Split](./public/screenshot-table.png)
+
+---
+
+👉 To update screenshots:
+1. Run the app locally (`npm run dev`).
+2. Take a screenshot (Cmd+Shift+4 on Mac).
+3. Save it into the `public/` folder with a clear name:
+   - `screenshot-main.png`
+   - `screenshot-table.png`
+4. Commit & push. GitHub will serve them directly in the README.
+
+---
+
 ## Features
 
 - 👥 **Friends manager** – add/remove friends; persist locally (name + optional account no.)
