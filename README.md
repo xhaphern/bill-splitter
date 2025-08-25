@@ -1,12 +1,23 @@
 # Bill Splitter
 
 [![Deploy to GitHub Pages](https://github.com/xhaphern/bill-splitter/actions/workflows/deploy.yml/badge.svg)](https://github.com/xhaphern/bill-splitter/actions/workflows/deploy.yml)
+[![Docs – Wiki](https://img.shields.io/badge/docs-wiki-brightgreen.svg)](https://github.com/xhaphern/bill-splitter/wiki)
 
 Split bills fairly among friends with an itemized breakdown. Add friends (with optional account numbers), add items via a form, pick a payer, and export a clean PNG/JPEG of the final table.
 
 **Live demo:** https://xhaphern.github.io/bill-splitter/
 
 > Built with React, Vite, Tailwind CSS. Auto-deployed to GitHub Pages via GitHub Actions.
+
+---
+
+## 📚 Documentation
+
+- [Home (Overview)](https://github.com/xhaphern/bill-splitter/wiki)
+- [Installation](https://github.com/xhaphern/bill-splitter/wiki/Installation)
+- [Usage Guide](https://github.com/xhaphern/bill-splitter/wiki/Usage-Guide)
+- [Deployment](https://github.com/xhaphern/bill-splitter/wiki/Deployment)
+- [Roadmap](https://github.com/xhaphern/bill-splitter/wiki/Roadmap)
 
 ---
 
