@@ -16,21 +16,6 @@ export default defineConfig({
       return '/' + filename
     }
   },
-  manifest: {
-    name: 'Bill Splitter',
-    short_name: 'Bill Splitter',
-    start_url: '/',
-    display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#000000',
-    icons: [
-      {
-        src: '/favicon.svg',
-        sizes: 'any',
-        type: 'image/svg+xml'
-      }
-    ]
-  },
   server: {
     port: 5173,
     strictPort: true, // stops auto-switching ports
