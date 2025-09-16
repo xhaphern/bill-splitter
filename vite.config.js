@@ -5,7 +5,7 @@ import envCompatible from 'vite-plugin-env-compatible'
 // Full config with GitHub Pages, env plugin, fixed port, and Vitest support
 export default defineConfig({
   plugins: [react(), envCompatible()],
-  base: '/bill-splitter/', // keep this for GitHub Pages
+  base: './', // use relative paths
   server: {
     port: 5173,
     strictPort: true, // stops auto-switching ports
