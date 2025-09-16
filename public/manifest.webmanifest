@@ -1,0 +1,15 @@
+{
+  "name": "Bill Splitter",
+  "short_name": "Splitter",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#05080f",
+  "theme_color": "#0aa37f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

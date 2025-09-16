@@ -36,3 +36,9 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Ignore Cursor MCP configs
+.cursor/
+
+# Supabase local development
+/supabase/
