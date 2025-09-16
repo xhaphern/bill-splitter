@@ -5,7 +5,7 @@ import envCompatible from 'vite-plugin-env-compatible'
 // Full config with GitHub Pages, env plugin, fixed port, and Vitest support
 export default defineConfig({
   plugins: [react(), envCompatible()],
-  base: './', // use relative paths
+  base: '/', // use root path for Vercel deployment
   server: {
     port: 5173,
     strictPort: true, // stops auto-switching ports
