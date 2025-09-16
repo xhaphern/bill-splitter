@@ -24,5 +24,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    flowType: "pkce",
+    redirectTo: "https://bill-splitter-fawn.vercel.app/#/split"
   },
 });
