@@ -5,7 +5,12 @@ import envCompatible from 'vite-plugin-env-compatible'
 // Full config with GitHub Pages, env plugin, fixed port, and Vitest support
 export default defineConfig({
   plugins: [react(), envCompatible()],
-  base: 'https://bill-splitter-fawn.vercel.app/', // use full Vercel URL
+  base: '/',
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    emptyOutDir: true,
+  },
   server: {
     port: 5173,
     strictPort: true, // stops auto-switching ports
