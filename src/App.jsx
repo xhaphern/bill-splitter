@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -11,11 +11,12 @@ import { supabase } from "./supabaseClient";
 import { Menu, X } from "lucide-react";
 
 import BillSplitter from "./BillSplitter";
-import HistoryPage from "./pages/HistoryPage";
-import FriendsPage from "./pages/FriendsPage";
-import LoginPage from "./pages/LoginPage";
 import AuthBar from "./AuthBar";
-import BillDetailPage from "./pages/BillDetailPage";
+// Lazy-load non-initial routes to reduce initial bundle size
+const HistoryPage = lazy(() => import("./pages/HistoryPage"));
+const FriendsPage = lazy(() => import("./pages/FriendsPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const BillDetailPage = lazy(() => import("./pages/BillDetailPage"));
 
 // Gate protected routes (no session => go to /login)
 function PrivateRoute({ session, children, from = "/split" }) {
@@ -161,7 +162,14 @@ export default function App() {
           </main>
         ) : (
           <main className="max-w-7xl mx-auto px-4 pb-10">
-            <Routes>
+            <Suspense
+              fallback={
+                <div className="min-h-[40vh] grid place-items-center text-slate-300">
+                  Loading…
+                </div>
+              }
+            >
+              <Routes>
               {/* Default redirect */}
               <Route path="/" element={<Navigate to="/split" replace />} />
 
@@ -202,7 +210,8 @@ export default function App() {
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/split" replace />} />
-            </Routes>
+              </Routes>
+            </Suspense>
           </main>
         )}
       </div>
