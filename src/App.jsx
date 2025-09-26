@@ -8,7 +8,7 @@ import {
   NavLink,
 } from "react-router-dom";
 import { supabase } from "./supabaseClient";
-import { Menu, X } from "lucide-react";
+import { Menu, X } from "./icons";
 
 import BillSplitter from "./BillSplitter";
 import AuthBar from "./AuthBar";

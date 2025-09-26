@@ -1,8 +1,7 @@
 // src/pages/HistoryPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search } from "lucide-react";
-import { Receipt, Clock3, ChevronRight } from "lucide-react";
+import { Search, Receipt, Clock3, ChevronRight } from "../icons";
 import { supabase } from "../supabaseClient";
 
 function money(n, cur) {
