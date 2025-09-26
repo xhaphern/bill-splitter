@@ -21,7 +21,8 @@ import {
 } from "./icons";
 import html2canvas from "html2canvas";
 import { saveBill } from "./api/supaBills";
-import { fetchCircles, fetchCircleMembers } from "./api/supaCircles";
+import { colorFromName, hueFromName, colorFromHue, meColor } from "./utils/colors";
+import { fetchCircles, fetchCircleMembers, fetchCircleMemberCounts } from "./api/supaCircles";
 import { supabase } from "./supabaseClient";
 
 const STORAGE_FRIENDS = "bs_friends_v1";
@@ -133,6 +134,7 @@ export default function BillSplitter({ session }) {
   const [friends, setFriends] = useState([]); // participants for this bill
   const [friendCatalog, setFriendCatalog] = useState([]); // saved friends (signed-in)
   const [circles, setCircles] = useState([]);
+  const [circleCounts, setCircleCounts] = useState({});
   const [selectedCircle, setSelectedCircle] = useState("");
   const [friendSearch, setFriendSearch] = useState("");
 
@@ -150,6 +152,7 @@ export default function BillSplitter({ session }) {
 
         if (error) throw error;
         setFriendCatalog(data || []);
+        try { const counts = await fetchCircleMemberCounts(session.user.id); setCircleCounts(counts); } catch {}
       } catch (err) {
         console.error('Failed to load friends:', err);
         setFriendCatalog([]);
@@ -188,10 +191,8 @@ export default function BillSplitter({ session }) {
 
 
   // Get current user's name and account from stored preferences
-  const [userDisplayName, setUserDisplayName] = useState(() => {
-    try { return localStorage.getItem('user_display_name') || session?.user?.email?.split('@')[0] || 'You'; } 
-    catch { return session?.user?.email?.split('@')[0] || 'You'; }
-  });
+  // Default to "You" for anonymous users; override after session/meta loads
+  const [userDisplayName, setUserDisplayName] = useState('You');
   
   const [userAccount, setUserAccount] = useState(() => {
     try { return (localStorage.getItem('user_account') || '').slice(0, 13); } 
@@ -200,12 +201,16 @@ export default function BillSplitter({ session }) {
   
   // Update localStorage when userDisplayName or userAccount changes
   useEffect(() => {
-    localStorage.setItem('user_display_name', userDisplayName);
-  }, [userDisplayName]);
+    if (session?.user?.id) {
+      try { localStorage.setItem('user_display_name', userDisplayName); } catch {}
+    }
+  }, [userDisplayName, session?.user?.id]);
   
   useEffect(() => {
-    localStorage.setItem('user_account', userAccount);
-  }, [userAccount]);
+    if (session?.user?.id) {
+      try { localStorage.setItem('user_account', userAccount); } catch {}
+    }
+  }, [userAccount, session?.user?.id]);
 
   const currentUserName = userDisplayName;
 
@@ -343,7 +348,8 @@ export default function BillSplitter({ session }) {
 
   const openAddItem = () => {
     setEditingId(null);
-    setItemForm({ name: "", qty: "1", price: "", participants: [currentUserName] }); // Auto-select current user
+    // Start with no one selected; user picks participants explicitly
+    setItemForm({ name: "", qty: "1", price: "", participants: [] });
     setShowItemModal(true);
   };
   const openEditItem = (it) => {
@@ -715,73 +721,35 @@ export default function BillSplitter({ session }) {
   };
 
   // Participant color helper (consistent distinct colors for badges/totals)
-  const participantColor = (name) => {
-    const palette = [
-      {
-        text: "text-sky-200",
-        bg: "bg-sky-900/40",
-        border: "border border-sky-500/40",
-        ring: "ring-sky-400/40",
-        dot: "bg-sky-400",
-      },
-      {
-        text: "text-amber-200",
-        bg: "bg-amber-900/30",
-        border: "border border-amber-500/40",
-        ring: "ring-amber-400/40",
-        dot: "bg-amber-400",
-      },
-      {
-        text: "text-fuchsia-200",
-        bg: "bg-fuchsia-900/30",
-        border: "border border-fuchsia-500/40",
-        ring: "ring-fuchsia-400/40",
-        dot: "bg-fuchsia-400",
-      },
-      {
-        text: "text-teal-200",
-        bg: "bg-teal-900/30",
-        border: "border border-teal-500/40",
-        ring: "ring-teal-400/40",
-        dot: "bg-teal-400",
-      },
-      {
-        text: "text-indigo-200",
-        bg: "bg-indigo-900/30",
-        border: "border border-indigo-500/40",
-        ring: "ring-indigo-400/40",
-        dot: "bg-indigo-400",
-      },
-      {
-        text: "text-rose-200",
-        bg: "bg-rose-900/30",
-        border: "border border-rose-500/40",
-        ring: "ring-rose-400/40",
-        dot: "bg-rose-400",
-      },
-      {
-        text: "text-lime-200",
-        bg: "bg-lime-900/30",
-        border: "border border-lime-500/40",
-        ring: "ring-lime-400/40",
-        dot: "bg-lime-400",
-      },
-    ];
-
-    if (name === currentUserName) {
-      return {
-        text: "text-emerald-200",
-        bg: "bg-emerald-900/40",
-        border: "border border-emerald-500/40",
-        ring: "ring-emerald-400/40",
-        dot: "bg-emerald-400",
-      };
+  // Build per-list unique hues to avoid any close duplicates within participants
+  const participantColorMap = useMemo(() => {
+    const used = [];
+    const prox = 12; // degrees minimum separation
+    const step = 23;
+    const map = {};
+    const emerald = meColor; // fixed emerald for current user
+    for (const p of allParticipants) {
+      if (p.isCurrentUser) {
+        map[p.name] = emerald;
+        used.push(160);
+        continue;
+      }
+      let h = hueFromName(p.name || '');
+      for (let i = 0; i < 360; i++) {
+        let ok = true;
+        for (const uh of used) {
+          const d = Math.min(Math.abs(uh - h), 360 - Math.abs(uh - h));
+          if (d < prox) { ok = false; break; }
+        }
+        if (ok) { used.push(h); map[p.name] = colorFromHue(h); break; }
+        h = (h + step) % 360;
+      }
+      if (!map[p.name]) map[p.name] = colorFromName(p.name);
     }
+    return map;
+  }, [allParticipants]);
 
-    const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const idx = Math.abs(hash) % palette.length;
-    return palette[idx];
-  };
+  const participantColor = (name = '') => participantColorMap[name] || colorFromName(name);
 
   const [showProfile, setShowProfile] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -921,7 +889,7 @@ export default function BillSplitter({ session }) {
                     >
                       <option value="">Select circle…</option>
                       {circles.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                        <option key={c.id} value={c.id}>{c.name} ({circleCounts[c.id] ?? 0})</option>
                       ))}
                     </select>
                   </div>
@@ -957,26 +925,33 @@ export default function BillSplitter({ session }) {
 
               <div className="flex flex-wrap gap-2">
                 {allParticipants.map((p) => {
-                  const color = participantColor(p.name);
+                  if (p.isCurrentUser) {
+                    return (
+                      <span
+                        key={p.id ?? p.name}
+                        className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium bg-emerald-900/40 border border-emerald-500/40 text-emerald-200"
+                      >
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+                        <span className="truncate max-w-[120px]">{p.name} (You)</span>
+                      </span>
+                    );
+                  }
+                  const col = participantColor(p.name);
                   return (
                     <span
                       key={p.id ?? p.name}
-                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium ${color.bg} ${color.border}`}
+                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium"
+                      style={{ backgroundColor: col.bg, borderColor: col.border, color: col.text }}
                     >
-                      <span className={`h-2.5 w-2.5 rounded-full ${color.dot}`}></span>
-                      <span className={`truncate max-w-[120px] ${color.text}`}>
-                        {p.name}
-                        {p.isCurrentUser ? " (You)" : ""}
-                      </span>
-                      {!p.isCurrentUser && (
-                        <button
-                          onClick={() => removeFriend(p.id, p.name)}
-                          className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-red-500/30 hover:text-white"
-                          aria-label={`Remove ${p.name}`}
-                        >
-                          <X size={12} />
-                        </button>
-                      )}
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: col.dot }}></span>
+                      <span className="truncate max-w-[120px]">{p.name}</span>
+                      <button
+                        onClick={() => removeFriend(p.id, p.name)}
+                        className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-red-500/30 hover:text-white"
+                        aria-label={`Remove ${p.name}`}
+                      >
+                        <X size={12} />
+                      </button>
                     </span>
                   );
                 })}
@@ -1281,12 +1256,9 @@ export default function BillSplitter({ session }) {
                           {allParticipants.map((p) => {
                             const color = participantColor(p.name);
                             return (
-                              <td
-                                key={`cell-${it.id}-${p.name}`}
-                                className={`p-2 text-right ${color.text}`}
-                              >
-                                {fmt(cellShare(it, p.name))}
-                              </td>
+                          <td key={`cell-${it.id}-${p.name}`} className="p-2 text-right" style={{ color: participantColor(p.name).text }}>
+                            {fmt(cellShare(it, p.name))}
+                          </td>
                             );
                           })}
                       <td className={`p-2 text-right font-semibold`}>{fmt(rowTotal)}</td>
@@ -1347,14 +1319,11 @@ export default function BillSplitter({ session }) {
                   <tfoot>
                     <tr className="bg-slate-950/80 text-white">
                       <td className="p-2 font-semibold" colSpan={3}>SUM</td>
-                      {allParticipants.map((p) => {
-                        const color = participantColor(p.name);
-                        return (
-                          <td key={`sum-${p.name}`} className={`p-2 text-right ${color.text}`}>
-                            {fmt(calc.perParticipantSubtotal[p.name] || 0)}
-                          </td>
-                        );
-                      })}
+                      {allParticipants.map((p) => (
+                        <td key={`sum-${p.name}`} className="p-2 text-right" style={{ color: participantColor(p.name).text }}>
+                          {fmt(calc.perParticipantSubtotal[p.name] || 0)}
+                        </td>
+                      ))}
                       <td className="p-2 text-right">{fmt(calc.grandSubtotal)}</td>
                       {!isExporting && <td></td>}
                     </tr>
@@ -1427,18 +1396,28 @@ export default function BillSplitter({ session }) {
                 <div className="mt-4 space-y-2">
                   <div className="text-xs uppercase tracking-wide text-emerald-200/70">Per person</div>
                   {allParticipants.map((p) => {
-                    const color = participantColor(p.name);
+                    if (p.isCurrentUser) {
+                      return (
+                        <div key={`summary-${p.name}`} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm font-semibold bg-emerald-900/40 border-emerald-500/40`}>
+                          <span className={`inline-flex items-center gap-2 text-emerald-200`}>
+                            <span className={`h-2.5 w-2.5 rounded-full bg-emerald-400`}></span>
+                            {p.name} (You)
+                          </span>
+                          <span className={`text-emerald-200`}>
+                            {currencyPrefix}
+                            {fmt(calc.perParticipantPayable[p.name] || 0)}
+                          </span>
+                        </div>
+                      );
+                    }
+                    const col = participantColor(p.name);
                     return (
-                      <div
-                        key={`summary-${p.name}`}
-                        className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm font-semibold ${color.bg} ${color.border}`}
-                      >
-                        <span className={`inline-flex items-center gap-2 ${color.text}`}>
-                          <span className={`h-2.5 w-2.5 rounded-full ${color.dot}`}></span>
+                      <div key={`summary-${p.name}`} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm font-semibold`} style={{ backgroundColor: col.bg, borderColor: col.border }}>
+                        <span className={`inline-flex items-center gap-2`} style={{ color: col.text }}>
+                          <span className={`h-2.5 w-2.5 rounded-full`} style={{ backgroundColor: col.dot }}></span>
                           {p.name}
-                          {p.isCurrentUser ? " (You)" : ""}
                         </span>
-                        <span className={`${color.text}`}>
+                        <span style={{ color: col.text }}>
                           {currencyPrefix}
                           {fmt(calc.perParticipantPayable[p.name] || 0)}
                         </span>
@@ -1565,7 +1544,8 @@ export default function BillSplitter({ session }) {
                           key={p.name}
                           type="button"
                           onClick={() => toggleFormParticipant(p.name)}
-                          className={`px-3 py-1 rounded-full text-sm border ${on ? `${color.bg} ${color.border} ${color.text}` : "bg-slate-800 text-slate-200 border-slate-700"} ${p.isCurrentUser ? "ring-2 ring-emerald-400" : ""}`}
+                          className={`px-3 py-1 rounded-full text-sm border ${on ? '' : "bg-slate-800 text-slate-200 border-slate-700"} ${p.isCurrentUser && on ? "ring-2 ring-emerald-400" : ""}`}
+                          style={on ? { backgroundColor: participantColor(p.name).bg, borderColor: participantColor(p.name).border, color: participantColor(p.name).text } : undefined}
                         >
                           {p.name} {p.isCurrentUser ? '(You)' : ''}
                         </button>
@@ -1576,8 +1556,18 @@ export default function BillSplitter({ session }) {
               </div>
 
               <div className="mt-5 flex justify-end gap-2">
-                <button type="button" onClick={() => setShowItemModal(false)} className="rounded-xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800/70">Cancel</button>
-                <button type="submit" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500">
+                <button
+                  type="button"
+                  onClick={() => setShowItemModal(false)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-700/70 bg-slate-900/70 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800/70"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500"
+                >
+                  {editingId ? <Pencil size={14} /> : <Plus size={14} />}
                   {editingId ? "Update Item" : "Add Item"}
                 </button>
               </div>

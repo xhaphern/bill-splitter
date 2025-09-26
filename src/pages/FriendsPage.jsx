@@ -1,23 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, UserPlus, CreditCard, Search, MoreVertical, PlusCircle, Trash2, SaveIcon } from '../icons'
+import { Users, UserPlus, CreditCard, Search, MoreVertical, PlusCircle, Trash2, SaveIcon, Loader2 } from '../icons'
+import { colorFromName, hueFromName, colorFromHue } from '../utils/colors'
 import { supabase } from '../supabaseClient'
-import { fetchCircles, fetchCircleMembers, createCircle, deleteCircle, addCircleMember, removeCircleMember } from '../api/supaCircles'
+import { fetchCircles, fetchCircleMembers, createCircle, deleteCircle, addCircleMember, removeCircleMember, fetchCircleMemberCounts } from '../api/supaCircles'
 
-const friendPalette = [
-  { dot: 'bg-emerald-400', text: 'text-emerald-200', bg: 'bg-emerald-500/20' },
-  { dot: 'bg-sky-400', text: 'text-sky-200', bg: 'bg-sky-500/20' },
-  { dot: 'bg-indigo-400', text: 'text-indigo-200', bg: 'bg-indigo-500/20' },
-  { dot: 'bg-amber-400', text: 'text-amber-200', bg: 'bg-amber-500/20' },
-  { dot: 'bg-fuchsia-400', text: 'text-fuchsia-200', bg: 'bg-fuchsia-500/20' },
-  { dot: 'bg-teal-400', text: 'text-teal-200', bg: 'bg-teal-500/20' },
-  { dot: 'bg-rose-400', text: 'text-rose-200', bg: 'bg-rose-500/20' },
-]
-
-const friendColor = (name) => {
-  const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  return friendPalette[Math.abs(hash) % friendPalette.length]
-}
+const friendColor = colorFromName
 
 export default function FriendsPage() {
   const [session, setSession] = useState(null)
@@ -35,6 +23,7 @@ export default function FriendsPage() {
   const [circleMembers, setCircleMembers] = useState([])
   const [circleMembersCache, setCircleMembersCache] = useState({})
   const [membersLoading, setMembersLoading] = useState(false)
+  const [circleCounts, setCircleCounts] = useState({})
   const [newCircleName, setNewCircleName] = useState('')
   const [memberSearch, setMemberSearch] = useState('')
   const [memberSearchResults, setMemberSearchResults] = useState([])
@@ -60,6 +49,9 @@ export default function FriendsPage() {
     try {
       const cs = await fetchCircles(s.user.id)
       setCircles(cs)
+      // counts
+      const counts = await fetchCircleMemberCounts(s.user.id)
+      setCircleCounts(counts)
       // Auto-select first circle if none selected
       const targetCircle = selectedCircle || (cs && cs.length ? cs[0].id : '')
       if (targetCircle) {
@@ -211,6 +203,48 @@ export default function FriendsPage() {
 
   return (
     <div className="mx-auto max-w-5xl p-6 space-y-6 text-slate-100">
+      {/* Add a friend (moved to top) */}
+      <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
+        <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-emerald-200">
+          <UserPlus size={18} className="text-emerald-300" /> Add a friend
+        </div>
+        <form onSubmit={addFriend} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Friend name"
+            className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+          />
+          <div className="flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white">
+            <CreditCard size={16} className="text-emerald-300" />
+            <input
+              value={account}
+              onChange={(e) => setAccount(e.target.value.slice(0, 13))}
+              placeholder="Account (optional)"
+              maxLength={13}
+              className="w-full bg-transparent text-white placeholder-slate-400 focus:outline-none"
+            />
+          </div>
+          <div className="sm:col-span-2 flex justify-end">
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500"
+            >
+              <SaveIcon size={14} /> {editingId ? 'Update friend' : 'Save friend'}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="ml-2 inline-flex items-center justify-center rounded-xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800/70"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+
       {/* Circles manager */}
       <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -278,7 +312,8 @@ export default function FriendsPage() {
                       }}
                       className="text-left text-sm text-slate-200"
                     >
-                      {c.name}
+                      <span>{c.name}</span>
+                      <span className="ml-2 rounded-full border border-emerald-600/40 bg-emerald-900/30 px-2 py-0.5 text-xs text-emerald-200">{circleCounts[c.id] ?? 0}</span>
                     </button>
                     <button
                       type="button"
@@ -287,6 +322,7 @@ export default function FriendsPage() {
                           await deleteCircle(session.user.id, c.id)
                           setCircles((prev) => prev.filter((x) => x.id !== c.id))
                           if (selectedCircle === c.id) { setSelectedCircle(''); setCircleMembers([]) }
+                          setCircleCounts((prev) => { const cp = { ...prev }; delete cp[c.id]; return cp })
                         } catch (e) {
                           setError(e.message || 'Failed to delete circle')
                         }
@@ -302,7 +338,10 @@ export default function FriendsPage() {
             </div>
           </div>
           <div>
-            <label className="text-xs uppercase tracking-wide text-emerald-200/70">Members {selectedCircle ? '' : '(select a circle)'}</label>
+            <label className="text-xs uppercase tracking-wide text-emerald-200/70 flex items-center gap-2">
+              <span>Members {selectedCircle ? '' : '(select a circle)'}</span>
+              {membersLoading && <Loader2 className="animate-spin text-emerald-300" size={14} />}
+            </label>
             {selectedCircle ? (
               <div className="mt-2 space-y-3">
                 <div className="flex items-center rounded-xl border border-slate-700/70 bg-slate-950/70 px-3 py-2 text-sm">
@@ -337,6 +376,7 @@ export default function FriendsPage() {
                                     await removeCircleMember(session.user.id, selectedCircle, f.id)
                                     setCircleMembers((prev) => prev.filter((x) => x.id !== f.id))
                                     setCircleMembersCache((prev) => ({ ...prev, [selectedCircle]: (prev[selectedCircle] || []).filter((x) => x.id !== f.id) }))
+                                    setCircleCounts((prev) => ({ ...prev, [selectedCircle]: Math.max(0, (prev[selectedCircle] || 1) - 1) }))
                                     setMemberSearch('')
                                   } catch (e) { setError(e.message || 'Failed to remove member') }
                                 }}
@@ -352,6 +392,7 @@ export default function FriendsPage() {
                                     await addCircleMember(session.user.id, selectedCircle, f.id)
                                     setCircleMembers((prev) => [...prev, f])
                                     setCircleMembersCache((prev) => ({ ...prev, [selectedCircle]: [ ...(prev[selectedCircle] || []), f ] }))
+                                    setCircleCounts((prev) => ({ ...prev, [selectedCircle]: (prev[selectedCircle] || 0) + 1 }))
                                     setMemberSearch('')
                                   } catch (e) { setError(e.message || 'Failed to add member') }
                                 }}
@@ -370,9 +411,12 @@ export default function FriendsPage() {
                   {circleMembers.length === 0 ? (
                     <div className="rounded-full border border-slate-700/70 bg-slate-950/70 px-3 py-1.5 text-sm text-slate-300">{membersLoading ? 'Loading members…' : 'No members yet.'}</div>
                   ) : (
-                    circleMembers.map((m) => (
-                      <span key={m.id} className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/70 px-3 py-1.5 text-sm">
-                        <span>{m.name}</span>
+                    circleMembers.map((m) => {
+                      const col = friendColor(m.name)
+                      return (
+                      <span key={m.id} className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm" style={{ backgroundColor: col.bg, borderColor: col.border }}>
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: col.dot }}></span>
+                        <span style={{ color: col.text }}>{m.name}</span>
                         <button
                           type="button"
                           onClick={async () => {
@@ -381,12 +425,12 @@ export default function FriendsPage() {
                               setCircleMembers((prev) => prev.filter((x) => x.id !== m.id))
                             } catch (e) { setError(e.message || 'Failed to remove member') }
                           }}
-                          className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 hover:bg-slate-800/70"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/20 text-slate-200 hover:bg-red-500/20"
                         >
                           ×
                         </button>
                       </span>
-                    ))
+                    )})
                   )}
                 </div>
               </div>
@@ -396,6 +440,7 @@ export default function FriendsPage() {
           </div>
         </div>
       </div>
+      {/* Friends header + search */}
       <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -417,6 +462,82 @@ export default function FriendsPage() {
             className="w-full bg-transparent focus:outline-none"
           />
         </div>
+        {/* Inline friends list */}
+            <div className="mt-4">
+              {filteredFriends.length === 0 ? (
+            <div className="rounded-xl border border-slate-700/70 bg-slate-950/70 p-4 text-sm text-slate-300">
+              No friends yet. Add your first friend above to start splitting smarter.
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-slate-700/60">
+              {(() => { const used = new Set(); const unique = (n) => { let h = hueFromName(n); const step = 23; const prox = 12; for (let i=0;i<360;i++){ let ok=true; for (const uh of used){ const d=Math.min(Math.abs(uh-h),360-Math.abs(uh-h)); if (d < prox){ ok=false; break; } } if (ok){ used.add(h); return colorFromHue(h); } h=(h+step)%360; } return colorFromHue(h); }; return filteredFriends.map((f, idx) => { const col = unique(f.name);
+                return (
+                  <div
+                    key={f.id}
+                    className={`relative flex items-center justify-between gap-2 px-4 py-3 ${idx ? 'border-t border-slate-700/50' : ''} bg-slate-900/70`}
+                  >
+                    <div className="min-w-0 pr-10">
+                      <div className="flex items-center gap-2 text-base font-semibold text-white">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold" style={{ backgroundColor: col.bg, color: col.text, borderColor: 'rgba(255,255,255,0.2)' }}>
+                          {f.name.slice(0, 2).toUpperCase()}
+                        </span>
+                        <span className="truncate">{f.name}</span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 text-sm text-emerald-200/80">
+                        <CreditCard size={14} />
+                        <span className="break-all">{f.account || 'No account on file'}</span>
+                      </div>
+                    </div>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOpenMenu(openMenu === f.id ? null : f.id)
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 transition hover:bg-slate-800/60"
+                        aria-label="Friend actions"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                      {openMenu === f.id && (
+                        <div
+                          className="absolute right-0 top-0 z-30 w-36 -translate-y-full transform rounded-xl border border-slate-700/70 bg-slate-900/95 p-2 text-sm text-slate-100 shadow"
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-800/70"
+                            onClick={() => {
+                              setOpenMenu(null)
+                              setEditingId(f.id)
+                              setName(f.name)
+                              setAccount(f.account || '')
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-red-200 hover:bg-red-500/10"
+                            onClick={() => {
+                              setOpenMenu(null)
+                              removeFriend(f.id)
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })})()}
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -425,121 +546,7 @@ export default function FriendsPage() {
         </div>
       )}
 
-      <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
-        <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-emerald-200">
-          <UserPlus size={18} className="text-emerald-300" /> Add a friend
-        </div>
-        <form onSubmit={addFriend} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Friend name"
-            className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
-          />
-          <div className="flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white">
-            <CreditCard size={16} className="text-emerald-300" />
-            <input
-              value={account}
-              onChange={(e) => setAccount(e.target.value.slice(0, 13))}
-              placeholder="Account (optional)"
-              maxLength={13}
-              className="w-full bg-transparent text-white placeholder-slate-400 focus:outline-none"
-            />
-          </div>
-          <div className="sm:col-span-2 flex justify-end">
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500"
-            >
-              <SaveIcon size={14} /> {editingId ? 'Update friend' : 'Save friend'}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="ml-2 inline-flex items-center justify-center rounded-xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800/70"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
-
-      {filteredFriends.length === 0 ? (
-        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-sm text-slate-200/80 shadow">
-          No friends yet. Add your first friend above to start splitting smarter.
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredFriends.map((f) => {
-            const palette = friendColor(f.name)
-            return (
-              <div
-                key={f.id}
-                className="relative flex flex-col gap-2 rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur"
-              >
-                <div className="min-w-0 pr-12">
-                  <div className="flex items-center gap-2 text-base font-semibold text-white">
-                    <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-xs font-semibold ${palette.bg} ${palette.text}`}>
-                      {f.name.slice(0, 2).toUpperCase()}
-                    </span>
-                    <span className="truncate">{f.name}</span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 text-sm text-emerald-200/80">
-                    <CreditCard size={14} />
-                    <span className="break-all">{f.account || 'No account on file'}</span>
-                  </div>
-                </div>
-                <div className="absolute right-4 top-3">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOpenMenu(openMenu === f.id ? null : f.id)
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 transition hover:bg-slate-800/60"
-                    aria-label="Friend actions"
-                  >
-                    <MoreVertical size={16} />
-                  </button>
-                {openMenu === f.id && (
-                  <div
-                    className="absolute right-0 top-0 z-30 w-36 -translate-y-full transform rounded-xl border border-slate-700/70 bg-slate-900/95 p-2 text-sm text-slate-100 shadow"
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                      <button
-                        type="button"
-                        className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-800/70"
-                        onClick={() => {
-                          setOpenMenu(null)
-                          setEditingId(f.id)
-                          setName(f.name)
-                          setAccount(f.account || '')
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-red-200 hover:bg-red-500/10"
-                        onClick={() => {
-                          setOpenMenu(null)
-                          removeFriend(f.id)
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      {/* Friends list is rendered inside the Friends card above */}
     </div>
   )
 }

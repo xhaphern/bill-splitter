@@ -23,6 +23,20 @@ export async function fetchCircleMembers(userId, circleId) {
   return (data || []).map((row) => row.friends).filter(Boolean);
 }
 
+// Fetch member ids for all circles of a user, then count per circle in app code.
+export async function fetchCircleMemberCounts(userId) {
+  const { data, error } = await supabase
+    .from("friend_circle_members")
+    .select("circle_id")
+    .eq("user_id", userId);
+  if (error) return {};
+  const counts = {};
+  (data || []).forEach((row) => {
+    counts[row.circle_id] = (counts[row.circle_id] || 0) + 1;
+  });
+  return counts;
+}
+
 export async function createCircle(userId, name) {
   const { data, error } = await supabase
     .from("friend_circles")
