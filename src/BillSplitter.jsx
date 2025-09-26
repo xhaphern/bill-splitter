@@ -16,10 +16,12 @@ import {
   ChevronDown,
   FileText,
   MoreVertical,
-  HardDrive,
-} from "lucide-react";
+  Calendar,
+  SaveIcon,
+} from "./icons";
 import html2canvas from "html2canvas";
 import { saveBill } from "./api/supaBills";
+import { fetchCircles, fetchCircleMembers } from "./api/supaCircles";
 import { supabase } from "./supabaseClient";
 
 const STORAGE_FRIENDS = "bs_friends_v1";
@@ -127,17 +129,18 @@ const DownloadButton = forwardRef(function DownloadButton({ onSelect, open, setO
 });
 
 export default function BillSplitter({ session }) {
-  // ---- Friends (from Supabase) ----
-  const [friends, setFriends] = useState([]);
-  
-  // Load friends from Supabase
-  useEffect(() => {
-    if (!session?.user?.id) {
-      setFriends([]);
-      return;
-    }
+  // ---- Friends (participants for this bill) and catalog/circles ----
+  const [friends, setFriends] = useState([]); // participants for this bill
+  const [friendCatalog, setFriendCatalog] = useState([]); // saved friends (signed-in)
+  const [circles, setCircles] = useState([]);
+  const [selectedCircle, setSelectedCircle] = useState("");
+  const [friendSearch, setFriendSearch] = useState("");
 
-    const loadFriends = async () => {
+  // Load saved friends catalog: from Supabase when signed in; anonymous has none
+  useEffect(() => {
+    const load = async () => {
+      if (!session?.user?.id) { setFriendCatalog([]); setFriends([]); setCircles([]); return; }
+
       try {
         const { data, error } = await supabase
           .from('friends')
@@ -146,15 +149,43 @@ export default function BillSplitter({ session }) {
           .order('created_at', { ascending: true });
 
         if (error) throw error;
-        setFriends(data || []);
+        setFriendCatalog(data || []);
       } catch (err) {
         console.error('Failed to load friends:', err);
-        setFriends([]);
+        setFriendCatalog([]);
       }
     };
 
-    loadFriends();
+    load();
   }, [session?.user?.id]);
+
+  // Load circles (optional tables). Failure will simply show no circles
+  useEffect(() => {
+    const loadCircles = async () => {
+      if (!session?.user?.id) return;
+      const rows = await fetchCircles(session.user.id);
+      setCircles(rows);
+    };
+    loadCircles();
+  }, [session?.user?.id]);
+
+  // When a circle is selected, fetch members and set as participants
+  useEffect(() => {
+    const loadMembers = async () => {
+      if (!session?.user?.id) return;
+      if (!selectedCircle) return;
+      const members = await fetchCircleMembers(session.user.id, selectedCircle);
+      // Avoid duplicates: merge with existing participants
+      setFriends((prev) => {
+        const names = new Set(prev.map((f) => f.name));
+        const merged = [...prev];
+        members.forEach((m) => { if (!names.has(m.name)) merged.push(m); });
+        return merged;
+      });
+    };
+    loadMembers();
+  }, [selectedCircle, session?.user?.id]);
+
 
   // Get current user's name and account from stored preferences
   const [userDisplayName, setUserDisplayName] = useState(() => {
@@ -179,6 +210,7 @@ export default function BillSplitter({ session }) {
   const currentUserName = userDisplayName;
 
   const profileSyncReady = useRef(false);
+  const titleInputRef = useRef(null);
 
   useEffect(() => {
     profileSyncReady.current = false;
@@ -208,7 +240,17 @@ export default function BillSplitter({ session }) {
   const addFriend = async () => {
     const name = newFriend.name.trim();
     if (!name) return notify("Friend name is required", "warning");
-    if (!session?.user?.id) return notify("Please sign in to add friends", "warning");
+    // Anonymous: add to local list only
+    if (!session?.user?.id) {
+      setFriends((list) => [
+        ...list,
+        { id: `local-${Date.now()}`, name, account: newFriend.account.trim().slice(0, 13) || null },
+      ]);
+      setNewFriend({ name: "", account: "" });
+      setShowAddFriend(false);
+      notify("Friend added to this bill ✅", "success");
+      return;
+    }
     
     try {
       const { error } = await supabase
@@ -224,84 +266,72 @@ export default function BillSplitter({ session }) {
     setNewFriend({ name: "", account: "" });
       setShowAddFriend(false);
       notify("Friend added successfully ✅", "success");
-      
-      // Refresh friends list
+      // Refresh catalogs (not participants)
       const { data, error: fetchError } = await supabase
         .from('friends')
         .select('id, name, account')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: true });
-      
-      if (!fetchError) setFriends(data || []);
+      if (!fetchError) setFriendCatalog(data || []);
     } catch (err) {
       console.error('Failed to add friend:', err);
       notify("Failed to add friend", "error");
     }
   };
 
-  const removeFriend = async (friendId, friendName) => {
-    try {
-      const { error } = await supabase
-        .from('friends')
-        .delete()
-        .eq('id', friendId);
-
-      if (error) throw error;
-      
-      notify("Friend removed successfully ✅", "success");
-      
-      // Remove from bill items
-    setBill(s => ({
+  const removeFriend = (friendId, friendName) => {
+    // Remove from this bill only; don't delete saved friend records
+    setBill((s) => ({
       ...s,
-        items: s.items.map(it => ({ ...it, participants: (it.participants || []).filter(p => p !== friendName) })),
-        payer: s.payer === friendName ? "" : s.payer
-      }));
-      
-      // Refresh friends list
-      const { data, error: fetchError } = await supabase
-        .from('friends')
-        .select('id, name, account')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: true });
-      
-      if (!fetchError) setFriends(data || []);
-    } catch (err) {
-      console.error('Failed to remove friend:', err);
-      notify("Failed to remove friend", "error");
-    }
+      items: s.items.map((it) => ({
+        ...it,
+        participants: (it.participants || []).filter((p) => p !== friendName),
+      })),
+      payer: s.payer === friendName ? "" : s.payer,
+    }));
+
+    setFriends((list) =>
+      list.filter((f) => (f.id ?? f.name) !== (friendId ?? friendName))
+    );
+    notify("Removed from this bill ✅", "success");
   };
 
-  // ---- Bill state (persisted) ----
+  // ---- Bill state (persist anonymous; persist to localStorage only when signed in) ----
+  const defaultBill = {
+    title: "",
+    date: "",
+    currency: "MVR",
+    discount1: 0,
+    serviceCharge: 10,
+    discount2: 0,
+    gst: 8,
+    payer: "",
+    items: [],
+  };
+
   const [bill, setBill] = useState(() => {
+    if (!session?.user?.id) return defaultBill;
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_BILL));
-      const defaults = {
-        title: "",
-        date: "",
-        currency: "MVR",
-        discount1: 0,
-        serviceCharge: 10,
-        discount2: 0,
-        gst: 8,
-        payer: "",
-        items: [],
-      };
-      return stored ? { ...defaults, ...stored } : defaults;
+      return stored ? { ...defaultBill, ...stored } : defaultBill;
     } catch {
-      return {
-        title: "",
-        date: "",
-        currency: "MVR",
-        discount1: 0,
-        serviceCharge: 10,
-        discount2: 0,
-        gst: 8,
-        payer: "",
-        items: [],
-      };
+      return defaultBill;
     }
   });
-  useEffect(() => { localStorage.setItem(STORAGE_BILL, JSON.stringify(bill)); }, [bill]);
+
+  // Only persist bill to localStorage when signed in; anonymous is in-memory only
+  useEffect(() => {
+    if (session?.user?.id) {
+      try { localStorage.setItem(STORAGE_BILL, JSON.stringify(bill)); } catch {}
+    }
+  }, [bill, session?.user?.id]);
+
+  // Clear any leftover stored bill for anonymous sessions
+  useEffect(() => {
+    if (!session?.user?.id) {
+      try { localStorage.removeItem(STORAGE_BILL); } catch {}
+    }
+  }, [session?.user?.id]);
 
   const currencyPrefix = currencySymbols[bill.currency] ?? "";
   const dense = allParticipants.length > 7; // auto-compact when many columns
@@ -634,11 +664,12 @@ export default function BillSplitter({ session }) {
             setUserAccount(obj.user.account || userAccount);
           }
           
-          // Import friends to Supabase if user is signed in
+          // Import friends: to Supabase if signed in, otherwise into local list for this bill
           if (obj.friends && session?.user?.id) {
             importFriendsToSupabase(obj.friends);
           } else if (obj.friends) {
-            notify("Sign in to import friends to your account", "warning");
+            setFriends(Array.isArray(obj.friends) ? obj.friends : []);
+            notify("Imported friends locally. Sign in to save to account.", "warning");
           }
           
           notify("Bill imported successfully ✅", "success");
@@ -778,28 +809,7 @@ export default function BillSplitter({ session }) {
         {/* Top controls */}
         <div className="mb-4">
           <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="w-full lg:max-w-xl">
-                <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-200/80">
-                  <FileText size={16} />
-                  <span>Bill title</span>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-700/70 bg-slate-950/80 px-4 py-3">
-                  <Pencil size={18} className="text-emerald-300" />
-                  <input
-                    value={bill.title}
-                    onChange={(e) => setBill((s) => ({ ...s, title: e.target.value }))}
-                    placeholder="Weekend dinner with friends"
-                    className="flex-1 bg-transparent text-base text-white placeholder-slate-400 focus:outline-none"
-                  />
-                  <input
-                    type="date"
-                    value={bill.date || ""}
-                    onChange={(e) => setBill((s) => ({ ...s, date: e.target.value }))}
-                    className="rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-slate-200 focus:border-emerald-400 focus:outline-none"
-                  />
-                </div>
-              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto lg:justify-end">
                 <ActionButton
                   icon={<Plus size={18} />}
@@ -820,8 +830,8 @@ export default function BillSplitter({ session }) {
                   }}
                 />
                 <ActionButton
-                  icon={<HardDrive size={18} />}
-                  label="Save"
+                  icon={<SaveIcon size={18} />}
+                  label="Save bill"
                   onClick={handleSaveToHistory}
                   tone="emerald"
                 />
@@ -848,20 +858,75 @@ export default function BillSplitter({ session }) {
             <div className="space-y-4">
             {/* Participants */}
             <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur">
-              <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-200/80">
                   <Users size={16} className="text-emerald-300" />
                   <span>Participants</span>
                 </div>
-                <button
-                  onClick={() => setShowAddFriend((v) => !v)}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-600/70 bg-slate-950/80 px-2 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10 sm:px-3 sm:text-sm"
-                >
-                  <Plus size={14} />
-                  <span className="sr-only sm:hidden">{showAddFriend ? "Cancel" : "Add friend"}</span>
-                  <span className="hidden sm:inline">{showAddFriend ? "Cancel" : "Add friend"}</span>
-                </button>
+                <div className="flex flex-1 items-center justify-end gap-2 min-w-[240px]">
+                  {session?.user?.id && (
+                    <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl">
+                      <input
+                        placeholder="Search saved friends"
+                        value={friendSearch}
+                        onChange={(e) => setFriendSearch(e.target.value)}
+                        aria-label="Search saved friends"
+                        className="w-full rounded-full border border-slate-700/70 bg-slate-900/70 px-3 py-1.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                      />
+                      {friendSearch.trim() && (
+                        <div className="absolute right-0 z-20 mt-2 max-h-56 w-[min(24rem,100vw)] overflow-auto rounded-xl border border-slate-700/70 bg-slate-950/95 p-2 text-sm shadow">
+                          {friendCatalog
+                            .filter((f) => f.name.toLowerCase().includes(friendSearch.trim().toLowerCase()))
+                            .filter((f) => !friends.some((p) => p.id === f.id))
+                            .slice(0, 8)
+                            .map((f) => (
+                              <button
+                                key={f.id}
+                                type="button"
+                                onClick={() => {
+                                  setFriends((prev) => [...prev, f]);
+                                  setFriendSearch("");
+                                }}
+                                className="block w-full rounded-lg px-3 py-2 text-left text-slate-200 hover:bg-slate-800/70"
+                              >
+                                {f.name} {f.account ? `· ${f.account}` : ""}
+                              </button>
+                            ))}
+                          {friendCatalog.filter((f) => f.name.toLowerCase().includes(friendSearch.trim().toLowerCase())).length === 0 && (
+                            <div className="px-3 py-2 text-slate-400">No matches</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setShowAddFriend((v) => !v)}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-600/70 bg-slate-950/80 px-2 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10 sm:px-3 sm:text-sm"
+                  >
+                    <Plus size={14} />
+                    <span className="sr-only sm:hidden">{showAddFriend ? "Cancel" : "Add friend"}</span>
+                    <span className="hidden sm:inline">{showAddFriend ? "Cancel" : "Add friend"}</span>
+                  </button>
+                </div>
               </div>
+
+              {session?.user?.id && circles.length > 0 && (
+                <div className="mb-3 grid grid-cols-1 gap-3 rounded-2xl border border-slate-700/70 bg-slate-950/80 p-4 sm:grid-cols-3">
+                  <div className="sm:col-span-1">
+                    <label className="text-xs uppercase tracking-wide text-emerald-200/80">Friend circle</label>
+                    <select
+                      value={selectedCircle}
+                      onChange={(e) => setSelectedCircle(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                    >
+                      <option value="">Select circle…</option>
+                      {circles.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {showAddFriend && (
                 <div className="mb-4 grid grid-cols-1 gap-3 rounded-2xl border border-slate-700/70 bg-slate-950/80 p-4 sm:grid-cols-2">
@@ -883,9 +948,9 @@ export default function BillSplitter({ session }) {
                   />
                   <button
                     onClick={addFriend}
-                    className="sm:col-span-2 inline-flex items-center justify-center rounded-xl bg-emerald-500/80 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500"
+                    className="sm:col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500"
                   >
-                    Save friend
+                    <SaveIcon size={14} /> Save friend
                   </button>
                 </div>
               )}
@@ -927,14 +992,38 @@ export default function BillSplitter({ session }) {
             {/* Table Section */}
             <div className="space-y-3">
               <div ref={exportRef} className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur">
-              {/* Title compact */}
+              {/* Title & date inline */}
               <div className="mb-3">
-                <div className="text-white font-semibold text-lg mb-1" title={bill.title || "Untitled bill"}>
-                  {bill.title || "Untitled bill"}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => titleInputRef.current?.focus()}
+                      aria-label="Edit title"
+                      title="Edit title"
+                      className="inline-flex items-center justify-center rounded-lg p-2 sm:p-1 text-emerald-300 transition hover:bg-emerald-500/10"
+                    >
+                      <Pencil size={18} />
+                    </button>
+                    <input
+                      ref={titleInputRef}
+                      value={bill.title}
+                      onChange={(e) => setBill((s) => ({ ...s, title: e.target.value }))}
+                      placeholder="Untitled bill"
+                      className="flex-1 bg-transparent text-lg font-semibold text-white placeholder-slate-400 focus:outline-none border-b border-transparent focus:border-emerald-400/60 pb-0.5 transition"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Calendar size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-emerald-300" />
+                    <input
+                      type="date"
+                      aria-label="Bill date"
+                      value={bill.date || ""}
+                      onChange={(e) => setBill((s) => ({ ...s, date: e.target.value }))}
+                      className="rounded-xl border border-slate-700/70 bg-slate-900/70 py-2 pl-10 pr-3 text-sm text-slate-200 focus:border-emerald-400 focus:outline-none"
+                    />
+                  </div>
                 </div>
-                {bill.date && (
-                  <div className="text-xs text-slate-400">Bill date: {new Date(bill.date).toLocaleDateString()}</div>
-                )}
                 <div className="flex flex-col gap-3 text-sm text-slate-200 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
                     <span className="text-[11px] uppercase tracking-wide text-emerald-200/80">

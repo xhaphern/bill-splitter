@@ -1,6 +1,6 @@
 // src/AuthBar.jsx
 import { Link, useLocation } from "react-router-dom";
-import { LogIn, LogOut, UserCircle } from "lucide-react";
+import { LogIn, LogOut, UserCircle } from "./icons";
 import { supabase } from "./supabaseClient";
 
 export default function AuthBar({ session, variant = "header" }) {

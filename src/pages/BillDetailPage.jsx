@@ -1,9 +1,9 @@
 // src/pages/BillDetailPage.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import html2canvas from "html2canvas";
-import { Download } from "lucide-react";
+import { Download } from "../icons";
 
 function money(n, cur) {
   const x = Number(n);
@@ -152,24 +152,22 @@ export default function BillDetailPage() {
   const perUserTotals = runningTotals;
   const total = Object.values(perUserTotals).reduce((acc, val) => acc + val, 0);
 
+
   const serviceAdjustment = adjustments.find((adj) => adj.label.startsWith('Service Charge'));
   const gstAdjustment = adjustments.find((adj) => adj.label.startsWith('GST'));
   const discountAdjustments = adjustments.filter((adj) => adj.label.toLowerCase().includes('discount'));
 
-  const detailSummaryLines = useMemo(
-    () => [
-      { kind: 'base', label: 'Subtotal', value: subtotal },
-      ...(serviceAdjustment
-        ? [{ kind: 'delta', label: serviceAdjustment.label, value: serviceAdjustment.totalDelta }]
-        : []),
-      ...(gstAdjustment
-        ? [{ kind: 'delta', label: gstAdjustment.label, value: gstAdjustment.totalDelta }]
-        : []),
-      ...discountAdjustments.map((adj) => ({ kind: 'delta', label: adj.label, value: adj.totalDelta })),
-      { kind: 'total', label: 'Total', value: total },
-    ],
-    [subtotal, total, serviceAdjustment, gstAdjustment, discountAdjustments]
-  );
+  const detailSummaryLines = [
+    { kind: 'base', label: 'Subtotal', value: subtotal },
+    ...(serviceAdjustment
+      ? [{ kind: 'delta', label: serviceAdjustment.label, value: serviceAdjustment.totalDelta }]
+      : []),
+    ...(gstAdjustment
+      ? [{ kind: 'delta', label: gstAdjustment.label, value: gstAdjustment.totalDelta }]
+      : []),
+    ...discountAdjustments.map((adj) => ({ kind: 'delta', label: adj.label, value: adj.totalDelta })),
+    { kind: 'total', label: 'Total', value: total },
+  ];
 
   const exportBill = async (type = "png") => {
     if (!exportRef.current) return;
@@ -213,7 +211,7 @@ export default function BillDetailPage() {
         </button>
       </div>
 
-      <div ref={exportRef} className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-6 shadow-xl backdrop-blur space-y-6">
+      <div ref={exportRef} className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 sm:p-6 shadow-xl backdrop-blur space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-white">{row.title || "Untitled Bill"}</h1>
@@ -228,73 +226,109 @@ export default function BillDetailPage() {
         </div>
 
         <div className="overflow-hidden rounded-3xl border border-slate-700/60 bg-slate-900/60">
-          <div className="grid grid-cols-[2fr,80px,120px,1fr] gap-4 px-4 py-3 text-sm font-medium text-slate-200 bg-slate-950/60">
-            <div>Item</div>
-            <div className="text-center">Qty</div>
-            <div className="text-right">Total ({currency})</div>
-            <div>Participants</div>
+          {/* Mobile list view */}
+          <div className="sm:hidden">
+            {items.length === 0 ? (
+              <div className="px-4 py-8 text-center text-slate-400">
+                No items found in this bill.
+              </div>
+            ) : (
+              <div className="space-y-2 p-2">
+                {items.map((it, index) => {
+                  const qty = Number(it.qty ?? 0);
+                  const price = Number(it.price ?? 0);
+                  const rowTotal = qty * price;
+                  const who = Array.isArray(it.participants) ? it.participants : [];
+                  return (
+                    <div
+                      key={it.id ?? `${it.name}-${index}`}
+                      className="rounded-2xl border border-slate-700/40 bg-slate-900/70 p-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold text-white break-words mr-2">
+                          {it.name || "Item"}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs text-slate-400">Total ({currency})</div>
+                          <div className="text-base font-bold text-white">{amount(rowTotal)}</div>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
+                        <span className="rounded-full border border-slate-700/60 bg-slate-800/60 px-2 py-0.5">Qty: {qty}</span>
+                      </div>
+                      {who.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {who.map((n) => {
+                            const color = colorForName(n);
+                            return (
+                              <span
+                                key={n}
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${color.bg} ${color.border} ${color.text}`}
+                              >
+                                <span className={`h-2 w-2 rounded-full ${color.dot}`}></span>
+                                {n}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {items.length === 0 ? (
-            <div className="px-4 py-8 text-center text-slate-400">
-              No items found in this bill. This bill was likely saved without any items.
-            </div>
-          ) : (
-            <div>
-              {items.map((it, index) => {
-                const qty = Number(it.qty ?? 0);
-                const price = Number(it.price ?? 0);
-                const rowTotal = qty * price;
-                const who = Array.isArray(it.participants) ? it.participants : [];
-                return (
-                  <div
-                    key={it.id ?? `${it.name}-${index}`}
-                    className={`grid grid-cols-[2fr,80px,120px,1fr] items-center gap-4 px-4 py-3 border-t border-slate-700/40 ${
-                      index % 2 === 0 ? "bg-slate-900/50" : "bg-slate-900/30"
-                    }`}
-                  >
-                    <div className="text-sm font-medium text-white">{it.name || "Item"}</div>
-                    <div className="text-center text-slate-300">{qty}</div>
-                    <div className="text-right font-semibold text-white">{amount(rowTotal)}</div>
-                    <div className="flex flex-wrap gap-1">
-                      {who.map((n) => {
-                        const color = colorForName(n);
-                        return (
-                          <span
-                            key={n}
-                            className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-medium ${color.bg} ${color.border} ${color.text}`}
-                          >
-                            <span className={`h-2 w-2 rounded-full ${color.dot}`}></span>
-                            {n}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/60 p-4">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-emerald-200">Amount per person</h2>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {Object.entries(perUserTotals).map(([user, value]) => {
-              const color = colorForName(user);
-              return (
-                <div
-                  key={user}
-                  className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 backdrop-blur ${color.bg} ${color.border}`}
-                >
-                  <span className={`inline-flex items-center gap-2 font-semibold ${color.text}`}>
-                    <span className={`h-2.5 w-2.5 rounded-full ${color.dot}`}></span>
-                    {user}
-                  </span>
-                  <span className={`font-semibold ${color.text}`}>{money(value, currency)}</span>
+          {/* Desktop/Tablet table */}
+          <div className="hidden sm:block overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="grid grid-cols-[2fr,80px,120px,1fr] gap-4 px-4 py-3 text-sm font-medium text-slate-200 bg-slate-950/60">
+                <div>Item</div>
+                <div className="text-center">Qty</div>
+                <div className="text-right">Total ({currency})</div>
+                <div>Participants</div>
+              </div>
+              {items.length === 0 ? (
+                <div className="px-4 py-8 text-center text-slate-400">
+                  No items found in this bill.
                 </div>
-              );
-            })}
+              ) : (
+                <div>
+                  {items.map((it, index) => {
+                    const qty = Number(it.qty ?? 0);
+                    const price = Number(it.price ?? 0);
+                    const rowTotal = qty * price;
+                    const who = Array.isArray(it.participants) ? it.participants : [];
+                    return (
+                      <div
+                        key={it.id ?? `${it.name}-${index}`}
+                        className={`grid grid-cols-[2fr,80px,120px,1fr] items-center gap-4 px-4 py-3 border-t border-slate-700/40 ${
+                          index % 2 === 0 ? "bg-slate-900/50" : "bg-slate-900/30"
+                        }`}
+                      >
+                        <div className="text-sm font-medium text-white">{it.name || "Item"}</div>
+                        <div className="text-center text-slate-300">{qty}</div>
+                        <div className="text-right font-semibold text-white">{amount(rowTotal)}</div>
+                        <div className="flex flex-wrap gap-1">
+                          {who.map((n) => {
+                            const color = colorForName(n);
+                            return (
+                              <span
+                                key={n}
+                                className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-medium ${color.bg} ${color.border} ${color.text}`}
+                              >
+                                <span className={`h-2 w-2 rounded-full ${color.dot}`}></span>
+                                {n}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -324,6 +358,24 @@ export default function BillDetailPage() {
                   >
                     {formattedValue}
                   </span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="text-xs uppercase tracking-wide text-emerald-200/70">Per person</div>
+            {Object.entries(perUserTotals).map(([user, value]) => {
+              const color = colorForName(user);
+              return (
+                <div
+                  key={`summary-${user}`}
+                  className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm font-semibold ${color.bg} ${color.border}`}
+                >
+                  <span className={`inline-flex items-center gap-2 ${color.text}`}>
+                    <span className={`h-2.5 w-2.5 rounded-full ${color.dot}`}></span>
+                    {user}
+                  </span>
+                  <span className={`${color.text}`}>{money(value, currency)}</span>
                 </div>
               );
             })}
