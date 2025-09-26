@@ -184,3 +184,17 @@ To run from source:
 # Go >= 1.22
 go run . help
 ```
+
+## Project Development (Bun)
+
+This app is configured to use Bun for development and builds.
+
+- Install dependencies: `bun install`
+- Dev server: `bun run dev` (http://localhost:5173)
+- Build: `bun run build`
+- Preview: `bun run preview`
+- Tests: `bun run test` (Vitest). Avoid `bun test`.
+
+Notes
+- package.json declares `packageManager: "bun@1"`. Do not mix managers.
+- Commit `bun.lock`; do not reintroduce `package-lock.json`.

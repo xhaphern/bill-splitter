@@ -38,6 +38,6 @@ describe('App', () => {
     expect(heading).toBeInTheDocument()
 
     const splitLink = await screen.findByRole('link', { name: /split/i })
-    expect(splitLink).toHaveAttribute('href', '#/split')
+    expect(splitLink).toHaveAttribute('href', '/split')
   })
 })

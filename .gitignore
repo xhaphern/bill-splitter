@@ -42,3 +42,6 @@ pnpm-debug.log*
 
 # Supabase local development
 /supabase/
+
+# Docs not tracked
+docs_gpt5_codex_prompt.md

@@ -52,15 +52,20 @@ describe('supaFriends API', () => {
     expect(saved).toEqual(created)
   })
 
-  it('removeFriend deletes friend by id', async () => {
-    const eq = vi.fn().mockResolvedValue({ error: null })
-    const del = vi.fn(() => ({ eq }))
+  it('removeFriend deletes friend by id and user', async () => {
+    const chain = { eq: vi.fn() }
+    // First eq call returns chain for second eq; second returns terminal result
+    chain.eq
+      .mockReturnValueOnce(chain)
+      .mockResolvedValueOnce({ error: null })
+    const del = vi.fn(() => chain)
     supabaseMock.from.mockReturnValue({ delete: del })
 
-    await removeFriend(42)
+    await removeFriend(42, 'user-123')
 
     expect(del).toHaveBeenCalled()
-    expect(eq).toHaveBeenCalledWith('id', 42)
+    expect(chain.eq).toHaveBeenNthCalledWith(1, 'id', 42)
+    expect(chain.eq).toHaveBeenNthCalledWith(2, 'user_id', 'user-123')
   })
 
   it('updateFriend updates record and returns the updated row', async () => {
