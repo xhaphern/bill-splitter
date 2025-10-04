@@ -9,6 +9,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 concurrency:
   group: "pages"
@@ -24,7 +25,8 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: '1'
+          bun-version: 'latest'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install
         run: bun install --frozen-lockfile
