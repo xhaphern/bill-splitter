@@ -32,8 +32,8 @@ export default function LoginPage() {
     return () => listener.subscription.unsubscribe();
   }, [navigate, from]);
 
-  // GitHub Pages redirect target (works locally and on prod)
-  const redirectTo = `${window.location.origin}/bill-splitter/`;
+  // OAuth redirect: prefer explicit env override, fallback to /split for Netlify/Vercel
+  const redirectTo = (import.meta.env.VITE_REDIRECT_URL) || `${window.location.origin}/split`;
 
   const signInWithGitHub = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
