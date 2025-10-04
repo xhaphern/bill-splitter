@@ -25,8 +25,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: 'latest'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          bun-version: '1.1.30'
 
       - name: Install
         run: bun install --frozen-lockfile
