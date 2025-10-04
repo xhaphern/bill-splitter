@@ -1,0 +1,9 @@
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+# Ensure client-side routing works on Netlify
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

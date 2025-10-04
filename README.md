@@ -198,3 +198,8 @@ This app is configured to use Bun for development and builds.
 Notes
 - package.json declares `packageManager: "bun@1"`. Do not mix managers.
 - Commit `bun.lock`; do not reintroduce `package-lock.json`.
+
+## Deployment
+
+- **Netlify**: Netlify picks up `netlify.toml`, runs `bun run build`, and serves the `dist/` folder. Client-side routing is handled via the bundled wildcard redirect. Configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and optional `VITE_REDIRECT_URL` in the Netlify site settings (Build & deploy → Environment). Set the Supabase OAuth redirect URL to `https://<your-site>.netlify.app/split` (or the custom domain equivalent) so post-auth flows return to the Split page.
+- **Vercel**: Existing `vercel.json` remains for compatibility; remove it once Netlify fully replaces Vercel.

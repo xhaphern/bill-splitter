@@ -4,7 +4,7 @@ export function colorFromName(name = '') {
   let hash = 0x811c9dc5;
   for (let i = 0; i < norm.length; i++) {
     hash ^= norm.charCodeAt(i);
-    hash = (hash >>> 0) * 0x01000193;
+    hash = Math.imul(hash >>> 0, 0x01000193);
   }
   hash >>>= 0;
   const hue = hash % 360; // 0..359 unique hue per name (very low collision)
@@ -27,7 +27,7 @@ export function hueFromName(name = '') {
   let hash = 0x811c9dc5;
   for (let i = 0; i < norm.length; i++) {
     hash ^= norm.charCodeAt(i);
-    hash = (hash >>> 0) * 0x01000193;
+    hash = Math.imul(hash >>> 0, 0x01000193);
   }
   return (hash >>> 0) % 360;
 }
