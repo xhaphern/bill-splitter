@@ -25,7 +25,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: "pkce",
-    // Default to the SPA route so Netlify/Vercel redirects land on a valid page
-    redirectTo: import.meta.env.VITE_REDIRECT_URL || `${window.location.origin}/split`
+    // Default to the SPA route for OAuth redirects
+    redirectTo: import.meta.env.VITE_REDIRECT_URL || (typeof window !== 'undefined' ? `${window.location.origin}/split` : undefined)
   },
 });

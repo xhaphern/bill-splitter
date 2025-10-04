@@ -1,205 +1,97 @@
-# Supabase CLI
+# Bill Splitter
 
-> For repository contribution guidelines, see [AGENTS.md](AGENTS.md).
+Bill Splitter is a Vite + React single-page app for tracking shared expenses, saving frequent contacts, and syncing bills to Supabase. It ships with Tailwind styling, deterministic friend colours, circle management, and OAuth sign-in via Supabase Auth.
 
+## Features
 
-[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
-](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
+- Create and edit bills with line items, taxes, service charges, discounts, and per-participant splits.
+- Save friends with optional account numbers, organise them into circles, and reuse them while splitting.
+- Persist data to Supabase tables for signed-in users; fall back to local state for anonymous usage.
+- Export bill summaries, download snapshots, and revisit history saved in Supabase.
+- OAuth sign-in (GitHub/Google) with redirect support for Netlify and other SPA hosts.
 
-[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
+## Tech Stack
 
-This repository contains all the functionality for Supabase CLI.
+- React 18 + Vite 7
+- Tailwind CSS 3
+- Supabase JS client (Auth, PostgREST)
+- Bun 1 (dependency manager, scripts, tests)
 
-- [x] Running Supabase locally
-- [x] Managing database migrations
-- [x] Creating and deploying Supabase Functions
-- [x] Generating types directly from your database schema
-- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
+## Prerequisites
 
-## Getting started
+- [Bun](https://bun.sh/) >= 1.1
+- Supabase project with tables (`friends`, `friend_circles`, `friend_circle_members`, `bills`, etc.) and RLS policies that scope data to `auth.uid()`.
+- Optional: Supabase CLI for local emulation.
 
-### Install the CLI
+## Environment Variables
 
-Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
+Create `.env.local` in the repo root (never commit secrets):
+
+```
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+# Optional explicit redirect for Supabase OAuth; defaults to window.location.origin + '/split'
+VITE_REDIRECT_URL=https://splitter-mv.netlify.app/split
+```
+
+Ensure the redirect URL is also added to Supabase Auth settings.
+
+## Local Development
 
 ```bash
-npm i supabase --save-dev
+bun install
+bun run dev
 ```
 
-To install the beta release channel:
+The app runs at http://localhost:5173. Sign in using Supabase Auth to exercise persistence, or continue anonymously to test local-only flows.
+
+### Linting & Tests
+
+Vitest covers Supabase API helpers and core flows:
 
 ```bash
-npm i supabase@beta --save-dev
+bun run test
 ```
 
-When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
+Add new tests beside implementation files using the `.test.jsx` suffix. For integration work, document manual QA scenarios (bill creation, friend management, circle add/remove, OAuth redirect) in PRs.
 
-```
-NODE_OPTIONS=--no-experimental-fetch yarn add supabase
-```
-
-> **Note**
-For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
-
-<details>
-  <summary><b>macOS</b></summary>
-
-  Available via [Homebrew](https://brew.sh). To install:
-
-  ```sh
-  brew install supabase/tap/supabase
-  ```
-
-  To install the beta release channel:
-  
-  ```sh
-  brew install supabase/tap/supabase-beta
-  brew link --overwrite supabase-beta
-  ```
-  
-  To upgrade:
-
-  ```sh
-  brew upgrade supabase
-  ```
-</details>
-
-<details>
-  <summary><b>Windows</b></summary>
-
-  Available via [Scoop](https://scoop.sh). To install:
-
-  ```powershell
-  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
-  scoop install supabase
-  ```
-
-  To upgrade:
-
-  ```powershell
-  scoop update supabase
-  ```
-</details>
-
-<details>
-  <summary><b>Linux</b></summary>
-
-  Available via [Homebrew](https://brew.sh) and Linux packages.
-
-  #### via Homebrew
-
-  To install:
-
-  ```sh
-  brew install supabase/tap/supabase
-  ```
-
-  To upgrade:
-
-  ```sh
-  brew upgrade supabase
-  ```
-
-  #### via Linux packages
-
-  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
-
-  ```sh
-  sudo apk add --allow-untrusted <...>.apk
-  ```
-
-  ```sh
-  sudo dpkg -i <...>.deb
-  ```
-
-  ```sh
-  sudo rpm -i <...>.rpm
-  ```
-
-  ```sh
-  sudo pacman -U <...>.pkg.tar.zst
-  ```
-</details>
-
-<details>
-  <summary><b>Other Platforms</b></summary>
-
-  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
-
-  ```sh
-  go install github.com/supabase/cli@latest
-  ```
-
-  Add a symlink to the binary in `$PATH` for easier access:
-
-  ```sh
-  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
-  ```
-
-  This works on other non-standard Linux distros.
-</details>
-
-<details>
-  <summary><b>Community Maintained Packages</b></summary>
-
-  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
-  To install in your working directory:
-
-  ```bash
-  pkgx install supabase
-  ```
-
-  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
-</details>
-
-### Run the CLI
+## Build & Preview
 
 ```bash
-supabase bootstrap
+bun run build
+bun run preview
 ```
 
-Or using npx:
-
-```bash
-npx supabase bootstrap
-```
-
-The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
-
-## Docs
-
-Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
-
-## Breaking changes
-
-We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
-
-However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
-
-## Developing
-
-To run from source:
-
-```sh
-# Go >= 1.22
-go run . help
-```
-
-## Project Development (Bun)
-
-This app is configured to use Bun for development and builds.
-
-- Install dependencies: `bun install`
-- Dev server: `bun run dev` (http://localhost:5173)
-- Build: `bun run build`
-- Preview: `bun run preview`
-- Tests: `bun run test` (Vitest). Avoid `bun test`.
-
-Notes
-- package.json declares `packageManager: "bun@1"`. Do not mix managers.
-- Commit `bun.lock`; do not reintroduce `package-lock.json`.
+`build` outputs to `dist/` and is suitable for static hosting. `preview` serves the production bundle locally.
 
 ## Deployment
 
-- **Netlify**: Netlify picks up `netlify.toml`, runs `bun run build`, and serves the `dist/` folder. Client-side routing is handled via the bundled wildcard redirect. Configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and optional `VITE_REDIRECT_URL` in the Netlify site settings (Build & deploy → Environment). Set the Supabase OAuth redirect URL to `https://<your-site>.netlify.app/split` (or the custom domain equivalent) so post-auth flows return to the Split page.
-- **Vercel**: Existing `vercel.json` remains for compatibility; remove it once Netlify fully replaces Vercel.
+### Netlify (recommended)
+
+- `netlify.toml` already sets the build command (`bun run build`), publish directory (`dist/`), and SPA fallback.
+- Configure the environment variables above in **Site settings → Build & deploy → Environment**.
+- Add `https://<your-domain>/split` to Supabase's allowed redirect URLs.
+
+### GitHub Pages (optional)
+
+A workflow in `.github/workflows/deploy.yml` builds with Bun and publishes to the `github-pages` environment. Enable GitHub Pages (source: GitHub Actions) if you want to keep this path.
+
+## Project Structure
+
+```
+src/
+  App.jsx            // Routing + layout
+  BillSplitter.jsx   // Core bill management UI
+  pages/             // History, Friends, Login, detail pages
+  api/               // Supabase data access helpers
+  utils/colors.js    // Deterministic colour helpers
+  supabaseClient.js  // Supabase client initialisation
+```
+
+## Contributing
+
+- Follow Conventional Commit prefixes (e.g., `feat:`, `fix:`, `chore:`).
+- Keep changes atomic; rebase on `main` before opening PRs.
+- Document any schema or RLS adjustments that accompany code changes.
+
+Refer to [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for detailed repository guidelines.
