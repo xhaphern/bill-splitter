@@ -32,7 +32,7 @@ export default function LoginPage() {
     return () => listener.subscription.unsubscribe();
   }, [navigate, from]);
 
-  // OAuth redirect: prefer explicit env override, fallback to /split for Netlify/Vercel
+  // OAuth redirect URL is resolved by getRedirectUrl()
   const redirectTo = getRedirectUrl();
 
   const signInWithGitHub = async () => {

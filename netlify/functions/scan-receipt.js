@@ -37,17 +37,21 @@ async function scanWithGemini(imagePayload) {
   const { base64, mimeType } = imagePayload || {};
   if (!base64) throw new Error("Missing base64 image data");
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `You are a receipt OCR assistant. Extract ALL purchased line items and key totals from this receipt image.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `You are a receipt OCR assistant. Extract ALL purchased line items and key totals from this receipt image.
 Output ONLY a JSON object with this exact shape (no prose, markdown, or code fences):
 {
   "items": [
@@ -70,81 +74,82 @@ Rules:
 - `summary.currency` should return the major currency code (e.g., "MVR", "USD") if visible, otherwise null.
 - Return an empty array for items if nothing is detected, but keep the JSON object structure.
 - Do NOT include any text outside of the JSON object.`
-              },
-              {
-                inline_data: {
-                  mime_type: mimeType || "image/jpeg",
-                  data: base64
+                },
+                {
+                  inline_data: {
+                    mime_type: mimeType || "image/jpeg",
+                    data: base64
+                  }
                 }
-              }
-            ]
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 2048
           }
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 2048
-        }
-      })
+        }),
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Gemini API error: ${response.status} ${error}`);
     }
-  );
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Gemini API error: ${response.status} ${error}`);
-  }
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const trimmed = text.trim();
+    let parsed = null;
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      const braceStart = trimmed.indexOf('{');
+      const braceEnd = trimmed.lastIndexOf('}');
+      if (braceStart !== -1 && braceEnd !== -1 && braceEnd > braceStart) {
+        try {
+          parsed = JSON.parse(trimmed.slice(braceStart, braceEnd + 1));
+        } catch {
+          // fall through
+        }
+      }
 
-  // Extract JSON from response (might have markdown code blocks)
-  const trimmed = text.trim();
-  let parsed;
-
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
-    const braceStart = trimmed.indexOf('{');
-    const braceEnd = trimmed.lastIndexOf('}');
-    if (braceStart !== -1 && braceEnd !== -1 && braceEnd > braceStart) {
-      try {
-        parsed = JSON.parse(trimmed.slice(braceStart, braceEnd + 1));
-      } catch {
+      if (!parsed) {
         const arrayMatch = trimmed.match(/\[[\s\S]*\]/);
         if (arrayMatch) {
           try {
             const items = JSON.parse(arrayMatch[0]);
             return { items: Array.isArray(items) ? items : [], rawText: text, summary: {} };
           } catch {
-            return { items: [], rawText: text, summary: {} };
+            // ignore and fall through
           }
         }
         return { items: [], rawText: text, summary: {} };
       }
-    } else {
-      const arrayMatch = trimmed.match(/\[[\s\S]*\]/);
-      if (arrayMatch) {
-        try {
-          const items = JSON.parse(arrayMatch[0]);
-          return { items: Array.isArray(items) ? items : [], rawText: text, summary: {} };
-        } catch {
-          return { items: [], rawText: text, summary: {} };
-        }
-      }
-      return { items: [], rawText: text, summary: {} };
     }
-  }
 
-  if (Array.isArray(parsed)) {
-    return { items: parsed, rawText: text, summary: {} };
-  }
+    if (Array.isArray(parsed)) {
+      return { items: parsed, rawText: text, summary: {} };
+    }
 
-  if (parsed && typeof parsed === "object") {
-    const items = Array.isArray(parsed.items) ? parsed.items : [];
-    const summary = parsed.summary && typeof parsed.summary === "object" ? parsed.summary : {};
-    return { items, summary, rawText: text };
-  }
+    if (parsed && typeof parsed === "object") {
+      const items = Array.isArray(parsed.items) ? parsed.items : [];
+      const summary = parsed.summary && typeof parsed.summary === "object" ? parsed.summary : {};
+      return { items, summary, rawText: text };
+    }
 
-  return { items: [], rawText: text, summary: {} };
+    return { items: [], rawText: text, summary: {} };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Gemini API request timed out');
+    }
+    throw error;
+  }
 }
 
 export const handler = async (event) => {

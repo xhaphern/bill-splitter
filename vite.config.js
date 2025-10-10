@@ -2,9 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import envCompatible from 'vite-plugin-env-compatible'
 
-const DEV_PORT = Number(process.env.VITE_DEV_PORT) || 5173
+const DEV_PORT = process.env.VITE_DEV_PORT ? Number(process.env.VITE_DEV_PORT) : 5173
 const DEV_HOST = process.env.VITE_DEV_HOST || 'localhost'
-const PREVIEW_PORT = Number(process.env.VITE_PREVIEW_PORT) || 4173
+const PREVIEW_PORT = process.env.VITE_PREVIEW_PORT ? Number(process.env.VITE_PREVIEW_PORT) : 4173
 
 // Full config with GitHub Pages, env plugin, dev server helpers, and Vitest support
 export default defineConfig({

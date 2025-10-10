@@ -7,7 +7,13 @@ import { fetchCircles, fetchCircleMembers, createCircle, deleteCircle, addCircle
 
 const friendColor = colorFromName
 
-const normalizePhone = (value = '') => value.replace(/\D/g, '')
+const normalizePhone = (value = '') => {
+  if (!value) return ''
+  const trimmed = value.trim()
+  const hasPlus = trimmed.startsWith('+')
+  const digits = trimmed.replace(/\D/g, '')
+  return hasPlus ? `+${digits}` : digits
+}
 
 export default function FriendsPage() {
   const [session, setSession] = useState(null)
@@ -76,6 +82,7 @@ export default function FriendsPage() {
   }, [])
 
   useEffect(() => {
+    // close menu when clicking elsewhere
     if (openMenu === null) return
     const handler = () => setOpenMenu(null)
     window.addEventListener('mousedown', handler)
@@ -83,14 +90,15 @@ export default function FriendsPage() {
   }, [openMenu])
 
   const validatePhoneInput = (value, requirePhone) => {
-    const digits = normalizePhone(value)
+    const normalized = normalizePhone(value)
+    const digitsOnly = normalized.replace(/\D/g, '')
     if (requirePhone) {
-      if (!digits) return { ok: false, message: 'Mobile number is required' }
-      if (digits.length < 7) return { ok: false, message: 'Mobile number must be at least 7 digits' }
-    } else if (digits && digits.length < 7) {
+      if (!normalized) return { ok: false, message: 'Mobile number is required' }
+      if (digitsOnly.length < 7) return { ok: false, message: 'Mobile number must be at least 7 digits' }
+    } else if (normalized && digitsOnly.length < 7) {
       return { ok: false, message: 'Enter at least 7 digits for the mobile number' }
     }
-    return { ok: true, digits }
+    return { ok: true, normalized, digits: digitsOnly }
   }
 
   const applyFriendPatch = (id, patch) => {
@@ -125,17 +133,21 @@ export default function FriendsPage() {
   async function addFriend(e) {
     if (e?.preventDefault) e.preventDefault()
     setError('')
+
     if (!name.trim()) return setError('Name is required')
-    const { ok, digits, message } = validatePhoneInput(phone, Boolean(session))
+
+    const { ok, normalized, digits, message } = validatePhoneInput(phone, Boolean(session))
     if (!ok) return setError(message)
 
     if (digits) {
-      const duplicate = friends.some((f) => normalizePhone(f.phone) === digits)
+      const duplicate = friends.some(
+        (f) => normalizePhone(f.phone).replace(/\D/g, '') === digits
+      )
       if (duplicate) return setError('This mobile number is already saved')
     }
 
     const cleanAccount = account.trim().slice(0, 13) || null
-    const phoneValue = digits || ''
+    const phoneValue = normalized || ''
 
     if (!session) {
       const localFriend = {
@@ -153,7 +165,12 @@ export default function FriendsPage() {
 
     const { error } = await supabase
       .from('friends')
-      .insert({ user_id: session.user.id, name: name.trim(), account: cleanAccount, phone: digits })
+      .insert({
+        user_id: session.user.id,
+        name: name.trim(),
+        account: cleanAccount,
+        phone: normalized || null,
+      })
 
     if (error) return setError(error.message)
 
@@ -166,6 +183,7 @@ export default function FriendsPage() {
   const handleEditSubmit = async () => {
     if (!editForm.id) return
     setEditError('')
+
     const trimmedName = editForm.name.trim()
     if (!trimmedName) {
       setEditError('Name is required')
@@ -173,7 +191,7 @@ export default function FriendsPage() {
     }
 
     const requirePhone = Boolean(session)
-    const { ok, digits, message } = validatePhoneInput(editForm.phone, requirePhone)
+    const { ok, normalized, digits, message } = validatePhoneInput(editForm.phone, requirePhone)
     if (!ok) {
       setEditError(message)
       return
@@ -181,7 +199,7 @@ export default function FriendsPage() {
 
     if (digits) {
       const duplicate = friends.some(
-        (f) => f.id !== editForm.id && normalizePhone(f.phone) === digits
+        (f) => f.id !== editForm.id && normalizePhone(f.phone).replace(/\D/g, '') === digits
       )
       if (duplicate) {
         setEditError('This mobile number is already saved')
@@ -196,13 +214,13 @@ export default function FriendsPage() {
       if (!session || String(editForm.id).startsWith('local-')) {
         applyFriendPatch(editForm.id, {
           name: trimmedName,
-          phone: digits || '',
+          phone: normalized || '',
           account: cleanAccount,
         })
       } else {
         const { error } = await supabase
           .from('friends')
-          .update({ name: trimmedName, phone: digits, account: cleanAccount })
+          .update({ name: trimmedName, phone: normalized || null, account: cleanAccount })
           .eq('id', editForm.id)
           .eq('user_id', session.user.id)
 
@@ -210,7 +228,7 @@ export default function FriendsPage() {
 
         applyFriendPatch(editForm.id, {
           name: trimmedName,
-          phone: digits,
+          phone: normalized,
           account: cleanAccount,
         })
       }

@@ -990,7 +990,10 @@ function notify(msg, kind = 'success') {
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: true });
       
-      if (!error) setFriends((data || []).map((row) => ({ ...row, phone: row.phone || "" })));
+      if (!error) {
+        const normalized = (data || []).map((row) => ({ ...row, phone: row.phone || "" }));
+        setFriendCatalog(normalized);
+      }
       notify("Friends imported successfully ✅", "success");
     } catch (err) {
       console.error('Failed to import friends:', err);
