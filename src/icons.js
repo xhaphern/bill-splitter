@@ -19,6 +19,7 @@ export {
   Plus,
   PlusCircle,
   Download,
+  Upload,
   Share2,
   Save as SaveIcon,
   // Content / context
