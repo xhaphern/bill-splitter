@@ -31,6 +31,14 @@ const STORAGE_FRIENDS = "bs_friends_v1";
 const STORAGE_BILL   = "bs_bill_v1";
 const currencySymbols = { MVR: "MVR ", USD: "$", EUR: "€", GBP: "£", INR: "₹", SGD: "S$", AUD: "A$", CAD: "C$", JPY: "¥" };
 const fmt = (n) => (Number(n) || 0).toFixed(2);
+const EMPTY_SCAN_SUMMARY = {
+  subtotal: null,
+  serviceChargeAmount: null,
+  total: null,
+  currency: null,
+};
+
+const normalizePhone = (value = "") => value.replace(/\D/g, "");
 
 function SettingInput({ label, value, onChange }) {
   return (
@@ -148,12 +156,12 @@ export default function BillSplitter({ session }) {
       try {
         const { data, error } = await supabase
           .from('friends')
-          .select('id, name, account')
+          .select('id, name, account, phone')
           .eq('user_id', session.user.id)
           .order('created_at', { ascending: true });
 
         if (error) throw error;
-        setFriendCatalog(data || []);
+        setFriendCatalog((data || []).map((row) => ({ ...row, phone: row.phone || "" })));
         try { const counts = await fetchCircleMemberCounts(session.user.id); setCircleCounts(counts); } catch {}
       } catch (err) {
         console.error('Failed to load friends:', err);
@@ -182,9 +190,21 @@ export default function BillSplitter({ session }) {
       const members = await fetchCircleMembers(session.user.id, selectedCircle);
       // Avoid duplicates: merge with existing participants
       setFriends((prev) => {
-        const names = new Set(prev.map((f) => f.name));
         const merged = [...prev];
-        members.forEach((m) => { if (!names.has(m.name)) merged.push(m); });
+        const nameKeys = new Set(prev.map((f) => f.name));
+        const phoneKeys = new Set(prev.map((f) => normalizePhone(f.phone || "")));
+        members.forEach((m) => {
+          const nextPhone = normalizePhone(m.phone || "");
+          if (nextPhone) {
+            if (phoneKeys.has(nextPhone)) return;
+            phoneKeys.add(nextPhone);
+          } else if (nameKeys.has(m.name)) {
+            return;
+          } else {
+            nameKeys.add(m.name);
+          }
+          merged.push({ ...m, phone: m.phone || "" });
+        });
         return merged;
       });
     };
@@ -241,19 +261,46 @@ export default function BillSplitter({ session }) {
   ];
 
   // Friend management
-  const [newFriend, setNewFriend] = useState({ name: "", account: "" });
+  const [newFriend, setNewFriend] = useState({ name: "", phone: "", account: "" });
   const [showAddFriend, setShowAddFriend] = useState(false);
 
   const addFriend = async () => {
     const name = newFriend.name.trim();
     if (!name) return notify("Friend name is required", "warning");
+    const normalizedPhone = normalizePhone(newFriend.phone);
+    const digitsLength = normalizedPhone.length;
+
+    if (session?.user?.id) {
+      if (!digitsLength) return notify("Mobile number is required", "warning");
+      if (digitsLength < 7) return notify("Mobile number must be at least 7 digits", "warning");
+    } else if (digitsLength && digitsLength < 7) {
+      return notify("Enter at least 7 digits for the mobile number", "warning");
+    }
+
+    if (digitsLength) {
+      if (!session?.user?.id) {
+        const duplicateLocal = friends.some((f) => normalizePhone(f.phone || "") === normalizedPhone);
+        if (duplicateLocal) return notify("This mobile number is already on the list", "warning");
+      } else {
+        const duplicateCatalog = friendCatalog.some((f) => normalizePhone(f.phone || "") === normalizedPhone);
+        if (duplicateCatalog) return notify("This mobile number is already saved", "warning");
+        const duplicateParticipant = friends.some((f) => normalizePhone(f.phone || "") === normalizedPhone);
+        if (duplicateParticipant) return notify("This mobile number is already on the participant list", "warning");
+      }
+    }
+
     // Anonymous: add to local list only
     if (!session?.user?.id) {
       setFriends((list) => [
         ...list,
-        { id: `local-${Date.now()}`, name, account: newFriend.account.trim().slice(0, 13) || null },
+        {
+          id: `local-${Date.now()}`,
+          name,
+          phone: digitsLength ? normalizedPhone : "",
+          account: newFriend.account.trim().slice(0, 13) || null,
+        },
       ]);
-      setNewFriend({ name: "", account: "" });
+      setNewFriend({ name: "", phone: "", account: "" });
       setShowAddFriend(false);
       notify("Friend added to this bill ✅", "success");
       return;
@@ -265,21 +312,22 @@ export default function BillSplitter({ session }) {
         .insert({ 
           user_id: session.user.id, 
           name: name, 
+          phone: normalizedPhone,
           account: newFriend.account.trim().slice(0, 13) || null 
         });
 
       if (error) throw error;
       
-    setNewFriend({ name: "", account: "" });
+    setNewFriend({ name: "", phone: "", account: "" });
       setShowAddFriend(false);
       notify("Friend added successfully ✅", "success");
       // Refresh catalogs (not participants)
       const { data, error: fetchError } = await supabase
         .from('friends')
-        .select('id, name, account')
+        .select('id, name, account, phone')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: true });
-      if (!fetchError) setFriendCatalog(data || []);
+      if (!fetchError) setFriendCatalog((data || []).map((row) => ({ ...row, phone: row.phone || "" })));
     } catch (err) {
       console.error('Failed to add friend:', err);
       notify("Failed to add friend", "error");
@@ -484,12 +532,29 @@ function notify(msg, kind = 'success') {
   const [showOcrModal, setShowOcrModal] = useState(false);
   const [scannedItems, setScannedItems] = useState([]);
   const [scannedText, setScannedText] = useState("");
+  const [scannedSummary, setScannedSummary] = useState(EMPTY_SCAN_SUMMARY);
 
-  const handleOcrItems = (items = [], rawText = "") => {
-    if (!Array.isArray(items) || items.length === 0) {
+  const handleOcrItems = (result) => {
+    const items = Array.isArray(result?.items) ? result.items : [];
+    const rawText = typeof result?.rawText === "string" ? result.rawText : "";
+    const summary = result?.summary || {};
+
+    if (!items.length) {
       notify("No totals found in the scanned receipt.", "warning");
       return;
     }
+
+    const normalizedSummary = {
+      subtotal: Number.isFinite(summary.subtotal) ? summary.subtotal : null,
+      serviceChargeAmount: Number.isFinite(summary.serviceChargeAmount)
+        ? summary.serviceChargeAmount
+        : Number.isFinite(summary.serviceCharge)
+          ? summary.serviceCharge
+          : null,
+      total: Number.isFinite(summary.total) ? summary.total : null,
+      currency: summary.currency || null,
+    };
+    setScannedSummary(normalizedSummary);
 
     const normalized = items.map((item, idx) => ({
       tempId: Date.now() + idx,
@@ -532,19 +597,63 @@ function notify(msg, kind = 'success') {
     );
   };
 
+  const computeTotalsForItems = (items, adjustments) => {
+    const subtotal = items.reduce((sum, item) => {
+      const qty = Number(item.qty ?? item.quantity ?? 0);
+      const price = Number(item.price ?? 0);
+      if (!Number.isFinite(qty) || !Number.isFinite(price)) return sum;
+      return sum + qty * price;
+    }, 0);
+
+    let running = subtotal;
+    const applyStage = (pct, type) => {
+      const rate = Number(pct) || 0;
+      if (!rate) return;
+      const delta = running * (rate / 100);
+      running = type === 'minus' ? running - delta : running + delta;
+    };
+
+    applyStage(adjustments.discount1, 'minus');
+    applyStage(adjustments.serviceCharge, 'plus');
+    applyStage(adjustments.discount2, 'minus');
+    applyStage(adjustments.gst, 'plus');
+
+    return { subtotal, total: running };
+  };
+
+  const formatMoney = (amount, currencyCode) => {
+    const value = Number(amount);
+    if (!Number.isFinite(value)) return '';
+    const code = currencyCode || bill.currency || 'MVR';
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(value);
+    } catch (err) {
+      return `${code} ${value.toFixed(2)}`;
+    }
+  };
+
   const discardScannedItems = () => {
     setShowOcrModal(false);
     setScannedItems([]);
     setScannedText("");
+    setScannedSummary(EMPTY_SCAN_SUMMARY);
   };
 
   const commitScannedItems = () => {
+    const summaryForCommit = scannedSummary;
+    const hadExistingItems = bill.items.length > 0;
     if (!scannedItems.length) {
       setShowOcrModal(false);
       return;
     }
 
     const normalized = [];
+    let newItemsSubtotal = 0;
     for (const item of scannedItems) {
       const name = item.name.trim();
       const qtyNum = Number(item.qty);
@@ -573,17 +682,65 @@ function notify(msg, kind = 'success') {
         price: priceNum,
         participants: item.participants,
       });
+      newItemsSubtotal += qtyNum * priceNum;
     }
 
-    setBill((s) => ({
-      ...s,
-      items: [...s.items, ...normalized],
-    }));
+    let comparison = null;
+    let appliedServiceChargePct = null;
 
-    notify(
-      `Added ${normalized.length} scanned ${normalized.length === 1 ? "item" : "items"}.`,
-      "success"
-    );
+    setBill((prev) => {
+      const updatedItems = [...prev.items, ...normalized];
+      const baseSubtotal = Number.isFinite(summaryForCommit.subtotal)
+        ? summaryForCommit.subtotal
+        : newItemsSubtotal;
+      let serviceChargePct = prev.serviceCharge;
+
+      if (Number.isFinite(summaryForCommit.serviceChargeAmount) && baseSubtotal > 0) {
+        const derived = (summaryForCommit.serviceChargeAmount / baseSubtotal) * 100;
+        if (Number.isFinite(derived) && derived >= 0) {
+          serviceChargePct = Number(derived.toFixed(2));
+          appliedServiceChargePct = serviceChargePct;
+        }
+      }
+
+      const totals = computeTotalsForItems(updatedItems, {
+        discount1: prev.discount1,
+        serviceCharge: serviceChargePct,
+        discount2: prev.discount2,
+        gst: prev.gst,
+      });
+
+      comparison = { totals, summary: summaryForCommit };
+
+      return {
+        ...prev,
+        items: updatedItems,
+        serviceCharge: serviceChargePct,
+      };
+    });
+
+    const currencyCode = summaryForCommit.currency || bill.currency || 'MVR';
+    let successMessage = `Added ${normalized.length} scanned ${normalized.length === 1 ? "item" : "items"}.`;
+    if (appliedServiceChargePct !== null) {
+      successMessage += ` • Service charge set to ${appliedServiceChargePct.toFixed(2)}%`;
+    }
+
+    let warningMessage = null;
+    const scannedTotal = Number(comparison?.summary?.total);
+    if (!hadExistingItems && Number.isFinite(scannedTotal)) {
+      const diff = Math.abs(scannedTotal - comparison.totals.total);
+      if (diff > 0.5) {
+        warningMessage = `Receipt total (${formatMoney(scannedTotal, currencyCode)}) differs from the calculator total (${formatMoney(comparison.totals.total, currencyCode)}). Double-check discounts, taxes, or service charges.`;
+      } else {
+        successMessage += ` • Receipt total confirmed (${formatMoney(scannedTotal, currencyCode)})`;
+      }
+    }
+
+    if (warningMessage) {
+      notify(warningMessage, 'warning');
+    } else {
+      notify(successMessage, 'success');
+    }
 
     discardScannedItems();
   };
@@ -784,7 +941,14 @@ function notify(msg, kind = 'success') {
           if (obj.friends && session?.user?.id) {
             importFriendsToSupabase(obj.friends);
           } else if (obj.friends) {
-            setFriends(Array.isArray(obj.friends) ? obj.friends : []);
+            setFriends(
+              Array.isArray(obj.friends)
+                ? obj.friends.map((friend) => ({
+                    ...friend,
+                    phone: normalizePhone(friend.phone || ""),
+                  }))
+                : []
+            );
             notify("Imported friends locally. Sign in to save to account.", "warning");
           }
           
@@ -802,13 +966,17 @@ function notify(msg, kind = 'success') {
   const importFriendsToSupabase = async (friendsToImport) => {
     try {
       for (const friend of friendsToImport) {
+        const normalizedPhone = normalizePhone(friend.phone || "");
+        const payload = {
+          user_id: session.user.id,
+          name: friend.name,
+          account: (friend.account || "").slice(0, 13) || null,
+        };
+        if (normalizedPhone) payload.phone = normalizedPhone;
+
         const { error } = await supabase
           .from('friends')
-          .insert({ 
-            user_id: session.user.id, 
-            name: friend.name, 
-            account: (friend.account || "").slice(0, 13) || null 
-          });
+          .insert(payload);
         
         if (error && !error.message.includes('duplicate')) {
           console.error('Failed to import friend:', friend.name, error);
@@ -818,11 +986,11 @@ function notify(msg, kind = 'success') {
       // Refresh friends list
       const { data, error } = await supabase
         .from('friends')
-        .select('id, name, account')
+        .select('id, name, account, phone')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: true });
       
-      if (!error) setFriends(data || []);
+      if (!error) setFriends((data || []).map((row) => ({ ...row, phone: row.phone || "" })));
       notify("Friends imported successfully ✅", "success");
     } catch (err) {
       console.error('Failed to import friends:', err);
@@ -951,30 +1119,52 @@ function notify(msg, kind = 'success') {
                         aria-label="Search saved friends"
                         className="w-full rounded-full border border-slate-700/70 bg-slate-900/70 px-3 py-1.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
                       />
-                      {friendSearch.trim() && (
-                        <div className="absolute right-0 z-20 mt-2 max-h-56 w-[min(24rem,100vw)] overflow-auto rounded-xl border border-slate-700/70 bg-slate-950/95 p-2 text-sm shadow">
-                          {friendCatalog
-                            .filter((f) => f.name.toLowerCase().includes(friendSearch.trim().toLowerCase()))
-                            .filter((f) => !friends.some((p) => p.id === f.id))
-                            .slice(0, 8)
-                            .map((f) => (
+                      {friendSearch.trim() && (() => {
+                        const searchTerm = friendSearch.trim().toLowerCase();
+                        const digitTerm = searchTerm.replace(/\D/g, "");
+                        const matches = friendCatalog.filter((f) => {
+                          if (!searchTerm) return true;
+                          const nameMatch = f.name.toLowerCase().includes(searchTerm);
+                          const accountMatch = (f.account || "").toLowerCase().includes(searchTerm);
+                          const phoneMatch = (f.phone || "").toLowerCase().includes(searchTerm);
+                          const digitsMatch = digitTerm && (f.phone || "").replace(/\D/g, "").includes(digitTerm);
+                          return nameMatch || accountMatch || phoneMatch || digitsMatch;
+                        });
+                        const visibleMatches = matches
+                          .filter((f) => !friends.some((p) => {
+                            if (p.id === f.id) return true;
+                            const existingPhone = normalizePhone(p.phone || "");
+                            const nextPhone = normalizePhone(f.phone || "");
+                            return existingPhone && nextPhone && existingPhone === nextPhone;
+                          }))
+                          .slice(0, 8);
+                        return (
+                          <div className="absolute right-0 z-20 mt-2 max-h-56 w-[min(24rem,100vw)] overflow-auto rounded-xl border border-slate-700/70 bg-slate-950/95 p-2 text-sm shadow">
+                            {visibleMatches.map((f) => (
                               <button
                                 key={f.id}
                                 type="button"
                                 onClick={() => {
+                                  if (friends.some((p) => normalizePhone(p.phone || "") === normalizePhone(f.phone || ""))) {
+                                    notify("This mobile number is already on the participant list", "warning");
+                                    return;
+                                  }
                                   setFriends((prev) => [...prev, f]);
                                   setFriendSearch("");
                                 }}
                                 className="block w-full rounded-lg px-3 py-2 text-left text-slate-200 hover:bg-slate-800/70"
                               >
-                                {f.name} {f.account ? `· ${f.account}` : ""}
+                                {f.name}
+                                {f.phone ? ` · ${f.phone}` : ""}
+                                {f.account ? ` · ${f.account}` : ""}
                               </button>
                             ))}
-                          {friendCatalog.filter((f) => f.name.toLowerCase().includes(friendSearch.trim().toLowerCase())).length === 0 && (
-                            <div className="px-3 py-2 text-slate-400">No matches</div>
-                          )}
-                        </div>
-                      )}
+                            {visibleMatches.length === 0 && (
+                              <div className="px-3 py-2 text-slate-400">No matches</div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                   <button
@@ -1007,11 +1197,21 @@ function notify(msg, kind = 'success') {
               )}
 
               {showAddFriend && (
-                <div className="mb-4 grid grid-cols-1 gap-3 rounded-2xl border border-slate-700/70 bg-slate-950/80 p-4 sm:grid-cols-2">
+                <div className="mb-4 grid grid-cols-1 gap-3 rounded-2xl border border-slate-700/70 bg-slate-950/80 p-4 sm:grid-cols-3">
                   <input
                     placeholder="Friend name"
                     value={newFriend.name}
                     onChange={(e) => setNewFriend((v) => ({ ...v, name: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                  />
+                  <input
+                    placeholder="Mobile (+15551234567)"
+                    inputMode="tel"
+                    value={newFriend.phone}
+                    onChange={(e) => {
+                      const next = normalizePhone(e.target.value);
+                      setNewFriend((v) => ({ ...v, phone: next }));
+                    }}
                     className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
                   />
                   <input
@@ -1026,7 +1226,7 @@ function notify(msg, kind = 'success') {
                   />
                   <button
                     onClick={addFriend}
-                    className="sm:col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500"
+                    className="sm:col-span-3 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500"
                   >
                     <SaveIcon size={14} /> Save friend
                   </button>

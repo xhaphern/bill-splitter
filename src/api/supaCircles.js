@@ -16,11 +16,14 @@ export async function fetchCircleMembers(userId, circleId) {
   // Use explicit FK join alias to avoid ambiguous relationships
   const { data, error } = await supabase
     .from("friend_circle_members")
-    .select("friend_id, friends:friends!friend_id(id, name, account)")
+    .select("friend_id, friends:friends!friend_id(id, name, account, phone)")
     .eq("user_id", userId)
     .eq("circle_id", circleId);
   if (error) return [];
-  return (data || []).map((row) => row.friends).filter(Boolean);
+  return (data || [])
+    .map((row) => row.friends)
+    .filter(Boolean)
+    .map((friend) => ({ ...friend, phone: friend.phone || "" }));
 }
 
 // Fetch member ids for all circles of a user, then count per circle in app code.
