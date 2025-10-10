@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, UserPlus, CreditCard, Search, MoreVertical, PlusCircle, Trash2, SaveIcon, Loader2 } from '../icons'
+import { Users, UserPlus, CreditCard, Phone, Search, MoreVertical, PlusCircle, Trash2, SaveIcon, Loader2, X } from '../icons'
 import { colorFromName, hueFromName, colorFromHue } from '../utils/colors'
 import { supabase } from '../supabaseClient'
 import { fetchCircles, fetchCircleMembers, createCircle, deleteCircle, addCircleMember, removeCircleMember, fetchCircleMemberCounts } from '../api/supaCircles'
 
 const friendColor = colorFromName
+
+const normalizePhone = (value = '') => value.replace(/\D/g, '')
 
 export default function FriendsPage() {
   const [session, setSession] = useState(null)
@@ -13,10 +15,14 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState([])
   const [name, setName] = useState('')
   const [account, setAccount] = useState('')
+  const [phone, setPhone] = useState('')
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [editingId, setEditingId] = useState(null)
   const [openMenu, setOpenMenu] = useState(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editForm, setEditForm] = useState({ id: null, name: '', phone: '', account: '' })
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
   // Circles
   const [circles, setCircles] = useState([])
   const [selectedCircle, setSelectedCircle] = useState('')
@@ -39,12 +45,12 @@ export default function FriendsPage() {
 
     const { data: rows, error } = await supabase
       .from('friends')
-      .select('id, name, account')
+      .select('id, name, account, phone')
       .eq('user_id', s.user.id) // only this user’s friends
       .order('created_at', { ascending: true })
 
     if (error) setError(error.message)
-    setFriends(rows || [])
+    setFriends((rows || []).map((row) => ({ ...row, phone: row.phone || '' })))
     // Load circles (no-op if tables missing)
     try {
       const cs = await fetchCircles(s.user.id)
@@ -76,52 +82,146 @@ export default function FriendsPage() {
     return () => window.removeEventListener('mousedown', handler)
   }, [openMenu])
 
+  const validatePhoneInput = (value, requirePhone) => {
+    const digits = normalizePhone(value)
+    if (requirePhone) {
+      if (!digits) return { ok: false, message: 'Mobile number is required' }
+      if (digits.length < 7) return { ok: false, message: 'Mobile number must be at least 7 digits' }
+    } else if (digits && digits.length < 7) {
+      return { ok: false, message: 'Enter at least 7 digits for the mobile number' }
+    }
+    return { ok: true, digits }
+  }
+
+  const applyFriendPatch = (id, patch) => {
+    setFriends((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)))
+    setCircleMembers((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)))
+    setCircleMembersCache((prev) => {
+      const next = {}
+      Object.entries(prev).forEach(([key, members]) => {
+        next[key] = members.map((m) => (m.id === id ? { ...m, ...patch } : m))
+      })
+      return next
+    })
+  }
+
+  const openEditFriend = (friend) => {
+    setEditForm({
+      id: friend.id,
+      name: friend.name || '',
+      phone: friend.phone || '',
+      account: friend.account || '',
+    })
+    setEditError('')
+    setEditModalOpen(true)
+  }
+
+  const closeEditModal = () => {
+    setEditModalOpen(false)
+    setEditForm({ id: null, name: '', phone: '', account: '' })
+    setEditError('')
+  }
+
   async function addFriend(e) {
     if (e?.preventDefault) e.preventDefault()
     setError('')
     if (!name.trim()) return setError('Name is required')
+    const { ok, digits, message } = validatePhoneInput(phone, Boolean(session))
+    if (!ok) return setError(message)
+
+    if (digits) {
+      const duplicate = friends.some((f) => normalizePhone(f.phone) === digits)
+      if (duplicate) return setError('This mobile number is already saved')
+    }
 
     const cleanAccount = account.trim().slice(0, 13) || null
+    const phoneValue = digits || ''
 
     if (!session) {
-      if (editingId) {
-        setFriends((prev) =>
-          prev.map((f) => (f.id === editingId ? { ...f, name: name.trim(), account: cleanAccount } : f))
-        )
-        setEditingId(null)
-      } else {
-        const localFriend = { id: `local-${Date.now()}`, name: name.trim(), account: cleanAccount }
-        setFriends((prev) => [...prev, localFriend])
+      const localFriend = {
+        id: `local-${Date.now()}`,
+        name: name.trim(),
+        account: cleanAccount,
+        phone: phoneValue,
       }
+      setFriends((prev) => [...prev, localFriend])
       setName('')
       setAccount('')
+      setPhone('')
       return
     }
 
-    if (editingId && !String(editingId).startsWith('local-')) {
-      const { error } = await supabase
-        .from('friends')
-        .update({ name: name.trim(), account: cleanAccount })
-        .eq('id', editingId)
+    const { error } = await supabase
+      .from('friends')
+      .insert({ user_id: session.user.id, name: name.trim(), account: cleanAccount, phone: digits })
 
-      if (error) return setError(error.message)
-      setEditingId(null)
-    } else if (editingId && String(editingId).startsWith('local-')) {
-      setFriends((prev) =>
-        prev.map((f) => (f.id === editingId ? { ...f, name: name.trim(), account: cleanAccount } : f))
-      )
-      setEditingId(null)
-    } else {
-      const { error } = await supabase
-        .from('friends')
-        .insert({ user_id: session.user.id, name: name.trim(), account: cleanAccount })
-
-      if (error) return setError(error.message)
-    }
+    if (error) return setError(error.message)
 
     setName('')
     setAccount('')
+    setPhone('')
     refresh()
+  }
+
+  const handleEditSubmit = async () => {
+    if (!editForm.id) return
+    setEditError('')
+    const trimmedName = editForm.name.trim()
+    if (!trimmedName) {
+      setEditError('Name is required')
+      return
+    }
+
+    const requirePhone = Boolean(session)
+    const { ok, digits, message } = validatePhoneInput(editForm.phone, requirePhone)
+    if (!ok) {
+      setEditError(message)
+      return
+    }
+
+    if (digits) {
+      const duplicate = friends.some(
+        (f) => f.id !== editForm.id && normalizePhone(f.phone) === digits
+      )
+      if (duplicate) {
+        setEditError('This mobile number is already saved')
+        return
+      }
+    }
+
+    const cleanAccount = editForm.account.trim().slice(0, 13) || null
+
+    setEditSaving(true)
+    try {
+      if (!session || String(editForm.id).startsWith('local-')) {
+        applyFriendPatch(editForm.id, {
+          name: trimmedName,
+          phone: digits || '',
+          account: cleanAccount,
+        })
+      } else {
+        const { error } = await supabase
+          .from('friends')
+          .update({ name: trimmedName, phone: digits, account: cleanAccount })
+          .eq('id', editForm.id)
+          .eq('user_id', session.user.id)
+
+        if (error) throw error
+
+        applyFriendPatch(editForm.id, {
+          name: trimmedName,
+          phone: digits,
+          account: cleanAccount,
+        })
+      }
+
+      closeEditModal()
+    } catch (err) {
+      console.error('Failed to update friend', err)
+      setEditError(err.message || 'Failed to update friend')
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   async function removeFriend(id) {
@@ -135,14 +235,32 @@ export default function FriendsPage() {
     refresh()
   }
 
-  const filteredFriends = friends.filter((f) =>
-    f.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
-  )
+  const filteredFriends = friends.filter((f) => {
+    const term = searchTerm.trim().toLowerCase()
+    if (!term) return true
+    const phoneTerm = term.replace(/\D/g, '')
+    return (
+      f.name.toLowerCase().includes(term) ||
+      (!!f.account && f.account.toLowerCase().includes(term)) ||
+      (!!f.phone && f.phone.toLowerCase().includes(term)) ||
+      (!!f.phone && phoneTerm && f.phone.replace(/\D/g, '').includes(phoneTerm))
+    )
+  })
 
   // Derived: candidates to add to selected circle
   // Compute client-side fallback candidates from already-loaded friends
   const circleCandidateFriends = friends
-    .filter((f) => f.name.toLowerCase().includes(memberSearch.trim().toLowerCase()))
+    .filter((f) => {
+      const term = memberSearch.trim().toLowerCase()
+      if (!term) return true
+      const phoneTerm = term.replace(/\D/g, '')
+      return (
+        f.name.toLowerCase().includes(term) ||
+        (!!f.account && f.account.toLowerCase().includes(term)) ||
+        (!!f.phone && f.phone.toLowerCase().includes(term)) ||
+        (!!f.phone && phoneTerm && f.phone.replace(/\D/g, '').includes(phoneTerm))
+      )
+    })
     .filter((f) => !circleMembers.some((m) => m.id === f.id))
     .slice(0, 8)
 
@@ -153,26 +271,29 @@ export default function FriendsPage() {
       if (!session || !selectedCircle) { setMemberSearchResults([]); return }
       const term = memberSearch.trim()
       if (!term) { setMemberSearchResults([]); return }
+      const digitTerm = term.replace(/\D/g, '')
+      const orFilters = [
+        `name.ilike.%${term}%`,
+        `account.ilike.%${term}%`,
+        `phone.ilike.%${term}%`,
+      ]
+      if (digitTerm) {
+        orFilters.push(`phone.ilike.%${digitTerm}%`)
+      }
       const { data, error } = await supabase
         .from('friends')
-        .select('id, name, account')
+        .select('id, name, account, phone')
         .eq('user_id', session.user.id)
-        .ilike('name', `%${term}%`)
+        .or(orFilters.join(','))
         .order('created_at', { ascending: true })
         .limit(8)
       if (cancelled) return
       if (error) { setMemberSearchResults([]); return }
-      setMemberSearchResults(data || [])
+      setMemberSearchResults((data || []).map((row) => ({ ...row, phone: row.phone || '' })))
     }
     run()
     return () => { cancelled = true }
   }, [memberSearch, selectedCircle, session, circleMembers])
-
-  const resetForm = () => {
-    setEditingId(null)
-    setName('')
-    setAccount('')
-  }
 
   if (loading) {
     return (
@@ -208,7 +329,7 @@ export default function FriendsPage() {
         <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-emerald-200">
           <UserPlus size={18} className="text-emerald-300" /> Add a friend
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -221,6 +342,22 @@ export default function FriendsPage() {
             placeholder="Friend name"
             className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
           />
+          <div className="flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white">
+            <Phone size={16} className="text-emerald-300" />
+            <input
+              value={phone}
+              onChange={(e) => setPhone(normalizePhone(e.target.value))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addFriend(e);
+                }
+              }}
+              placeholder="Mobile (+15551234567)"
+              inputMode="tel"
+              className="w-full bg-transparent text-white placeholder-slate-400 focus:outline-none"
+            />
+          </div>
           <div className="flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white">
             <CreditCard size={16} className="text-emerald-300" />
             <input
@@ -237,23 +374,14 @@ export default function FriendsPage() {
               className="w-full bg-transparent text-white placeholder-slate-400 focus:outline-none"
             />
           </div>
-          <div className="sm:col-span-2 flex justify-end">
+          <div className="sm:col-span-3 flex justify-end">
             <button
               type="button"
               onClick={addFriend}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500"
             >
-              <SaveIcon size={14} /> {editingId ? 'Update friend' : 'Save friend'}
+              <SaveIcon size={14} /> Save friend
             </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="ml-2 inline-flex items-center justify-center rounded-xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800/70"
-              >
-                Cancel
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -310,15 +438,16 @@ export default function FriendsPage() {
                         setSelectedCircle(c.id)
                         const cached = circleMembersCache[c.id]
                         if (cached) {
-                          setCircleMembers(cached)
+                          setCircleMembers(cached.map((m) => ({ ...m, phone: m.phone || '' })))
                           setMembersLoading(false)
                         } else {
                           setCircleMembers([])
                           setMembersLoading(true)
                           try {
                             const ms = await fetchCircleMembers(session.user.id, c.id)
-                            setCircleMembersCache((prev) => ({ ...prev, [c.id]: ms }))
-                            setCircleMembers(ms)
+                            const normalizedMembers = ms.map((m) => ({ ...m, phone: m.phone || '' }))
+                            setCircleMembersCache((prev) => ({ ...prev, [c.id]: normalizedMembers }))
+                            setCircleMembers(normalizedMembers)
                           } catch (_) { setCircleMembers([]) }
                           finally { setMembersLoading(false) }
                         }
@@ -379,7 +508,9 @@ export default function FriendsPage() {
                             className="flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-slate-800/70"
                           >
                             <div className="text-slate-200 truncate">
-                              {f.name} {f.account ? `· ${f.account}` : ''}
+                              {f.name}
+                              {f.phone ? ` · ${f.phone}` : ''}
+                              {f.account ? ` · ${f.account}` : ''}
                             </div>
                             {isMember ? (
                               <button
@@ -403,8 +534,9 @@ export default function FriendsPage() {
                                 onClick={async () => {
                                   try {
                                     await addCircleMember(session.user.id, selectedCircle, f.id)
-                                    setCircleMembers((prev) => [...prev, f])
-                                    setCircleMembersCache((prev) => ({ ...prev, [selectedCircle]: [ ...(prev[selectedCircle] || []), f ] }))
+                                    const sanitized = { ...f, phone: f.phone || '' }
+                                    setCircleMembers((prev) => [...prev, sanitized])
+                                    setCircleMembersCache((prev) => ({ ...prev, [selectedCircle]: [ ...(prev[selectedCircle] || []), sanitized ] }))
                                     setCircleCounts((prev) => ({ ...prev, [selectedCircle]: (prev[selectedCircle] || 0) + 1 }))
                                     setMemberSearch('')
                                   } catch (e) { setError(e.message || 'Failed to add member') }
@@ -427,7 +559,12 @@ export default function FriendsPage() {
                     circleMembers.map((m) => {
                       const col = friendColor(m.name)
                       return (
-                      <span key={m.id} className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm" style={{ backgroundColor: col.bg, borderColor: col.border }}>
+                      <span
+                        key={m.id}
+                        className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm"
+                        style={{ backgroundColor: col.bg, borderColor: col.border }}
+                        title={[m.name, m.phone, m.account].filter(Boolean).join(' · ')}
+                      >
                         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: col.dot }}></span>
                         <span style={{ color: col.text }}>{m.name}</span>
                         <button
@@ -436,6 +573,14 @@ export default function FriendsPage() {
                             try {
                               await removeCircleMember(session.user.id, selectedCircle, m.id)
                               setCircleMembers((prev) => prev.filter((x) => x.id !== m.id))
+                              setCircleMembersCache((prev) => ({
+                                ...prev,
+                                [selectedCircle]: (prev[selectedCircle] || []).filter((x) => x.id !== m.id),
+                              }))
+                              setCircleCounts((prev) => ({
+                                ...prev,
+                                [selectedCircle]: Math.max(0, (prev[selectedCircle] || 1) - 1),
+                              }))
                             } catch (e) { setError(e.message || 'Failed to remove member') }
                           }}
                           className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/20 text-slate-200 hover:bg-red-500/20"
@@ -482,7 +627,7 @@ export default function FriendsPage() {
               No friends yet. Add your first friend above to start splitting smarter.
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-slate-700/60">
+            <div className="relative rounded-2xl border border-slate-700/60 overflow-visible">
               {(() => { const used = new Set(); const unique = (n) => { let h = hueFromName(n); const step = 23; const prox = 12; for (let i=0;i<360;i++){ let ok=true; for (const uh of used){ const d=Math.min(Math.abs(uh-h),360-Math.abs(uh-h)); if (d < prox){ ok=false; break; } } if (ok){ used.add(h); return colorFromHue(h); } h=(h+step)%360; } return colorFromHue(h); }; return filteredFriends.map((f, idx) => { const col = unique(f.name);
                 return (
                   <div
@@ -497,8 +642,12 @@ export default function FriendsPage() {
                         <span className="truncate">{f.name}</span>
                       </div>
                       <div className="mt-1 flex items-center gap-2 text-sm text-emerald-200/80">
+                        <Phone size={14} />
+                        <span className="break-all">{f.phone || 'Mobile not saved'}</span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 text-sm text-emerald-200/80">
                         <CreditCard size={14} />
-                        <span className="break-all">{f.account || 'No account on file'}</span>
+                        <span className="break-all">{f.account || 'Account not saved'}</span>
                       </div>
                     </div>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -525,9 +674,7 @@ export default function FriendsPage() {
                             className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-800/70"
                             onClick={() => {
                               setOpenMenu(null)
-                              setEditingId(f.id)
-                              setName(f.name)
-                              setAccount(f.account || '')
+                              openEditFriend(f)
                             }}
                           >
                             Edit
@@ -556,6 +703,89 @@ export default function FriendsPage() {
       {error && (
         <div className="rounded-2xl border border-red-500/40 bg-red-900/30 px-4 py-3 text-sm text-red-200 shadow">
           {error}
+        </div>
+      )}
+
+      {editModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-700/70 bg-slate-900/90 p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                <UserPlus size={18} className="text-emerald-300" /> Edit friend
+              </div>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 hover:bg-slate-800/70"
+                aria-label="Close edit friend"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <input
+                value={editForm.name}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Friend name"
+                className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+              />
+              <div className="flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white">
+                <Phone size={16} className="text-emerald-300" />
+                <input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  placeholder="Mobile (+15551234567)"
+                  inputMode="tel"
+                  className="w-full bg-transparent text-white placeholder-slate-400 focus:outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white">
+                <CreditCard size={16} className="text-emerald-300" />
+                <input
+                  value={editForm.account}
+                  onChange={(e) => {
+                    const next = e.target.value.slice(0, 13)
+                    setEditForm((prev) => ({ ...prev, account: next }))
+                  }}
+                  placeholder="Account (optional)"
+                  maxLength={13}
+                  className="w-full bg-transparent text-white placeholder-slate-400 focus:outline-none"
+                />
+              </div>
+              {editError && (
+                <div className="rounded-xl border border-red-500/40 bg-red-900/30 px-3 py-2 text-xs text-red-200">
+                  {editError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800/70"
+                  disabled={editSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditSubmit}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={editSaving}
+                >
+                  {editSaving ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <SaveIcon size={14} /> Save changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

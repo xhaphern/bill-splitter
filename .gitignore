@@ -46,7 +46,11 @@ bun-debug.log*
 .cursor/
 
 # Supabase local development
-/supabase/
+/supabase/*
+!/supabase/migrations/
+!/supabase/config.toml
+!/supabase/seed.sql
+/supabase/.temp/
 
 # Docs not tracked
 docs_gpt5_codex_prompt.md
@@ -55,3 +59,6 @@ docs_gpt5_codex_prompt.md
 *.tmp
 *.temp
 .cache
+
+# Local Netlify folder
+.netlify

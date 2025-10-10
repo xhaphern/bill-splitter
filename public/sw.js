@@ -25,13 +25,20 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(event.request).then((cached) =>
-      cached || fetch(event.request).then((response) => {
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
-        return response;
-      }).catch(() => cached)
-    )
-  );
+
+  const url = new URL(event.request.url);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
+  event.respondWith((async () => {
+    const cached = await caches.match(event.request);
+    try {
+      const response = await fetch(event.request);
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(event.request, response.clone());
+      return response;
+    } catch (err) {
+      if (cached) return cached;
+      return new Response(null, { status: 504, statusText: 'Gateway Timeout' });
+    }
+  })());
 });

@@ -4,8 +4,9 @@ Bill Splitter is a Vite + React single-page app for tracking shared expenses, sa
 
 ## Features
 
+- **AI-Powered OCR**: Upload receipt photos to automatically extract line items using the Gemini API
 - Create and edit bills with line items, taxes, service charges, discounts, and per-participant splits.
-- Save friends with optional account numbers, organise them into circles, and reuse them while splitting.
+- Save friends with unique mobile numbers (per user), optional account numbers, organise them into circles, and reuse them while splitting.
 - Persist data to Supabase tables for signed-in users; fall back to local state for anonymous usage.
 - Export bill summaries, download snapshots, and revisit history saved in Supabase.
 - OAuth sign-in (GitHub/Google) with redirect support for Netlify and other SPA hosts.
@@ -21,6 +22,7 @@ Bill Splitter is a Vite + React single-page app for tracking shared expenses, sa
 
 - [Bun](https://bun.sh/) >= 1.1
 - Supabase project with tables (`friends`, `friend_circles`, `friend_circle_members`, `bills`, etc.) and RLS policies that scope data to `auth.uid()`.
+- The `friends` table now requires a `phone` column (text) with a partial unique index on `(user_id, phone)`—see `supabase/migrations/20241128120000_add_phone_to_friends.sql`.
 - Optional: Supabase CLI for local emulation.
 
 ## Environment Variables
@@ -30,11 +32,20 @@ Create `.env.local` in the repo root (never commit secrets):
 ```
 VITE_SUPABASE_URL=your-supabase-url
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-# Optional explicit redirect for Supabase OAuth; defaults to window.location.origin + '/split'
+# Optional explicit redirect for Supabase OAuth in production.
+# Local dev always uses http://<current-origin>/split automatically.
 VITE_REDIRECT_URL=https://splitter-mv.netlify.app/split
 ```
 
 Ensure the redirect URL is also added to Supabase Auth settings.
+
+### OCR Setup (Optional but Recommended)
+
+For AI-powered receipt scanning, add this to Netlify environment variables:
+
+- `GEMINI_API_KEY` - Google Gemini API (free tier available)
+
+See [OCR_SETUP.md](OCR_SETUP.md) for detailed instructions.
 
 ## Local Development
 

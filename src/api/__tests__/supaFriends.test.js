@@ -44,7 +44,7 @@ describe('supaFriends API', () => {
     const insert = vi.fn(() => ({ select }))
     supabaseMock.from.mockReturnValue({ insert })
 
-    const payload = { name: 'Alex', account: 'ax-1' }
+    const payload = { name: 'Alex', account: 'ax-1', phone: '+15551234567' }
     const saved = await addFriend('user-9', payload)
 
     expect(insert).toHaveBeenCalledWith([{ ...payload, user_id: 'user-9' }])
