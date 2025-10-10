@@ -17,6 +17,7 @@ import {
   FileText,
   MoreVertical,
   Calendar,
+  Upload,
   SaveIcon,
 } from "./icons";
 import html2canvas from "html2canvas";
@@ -24,6 +25,7 @@ import { saveBill } from "./api/supaBills";
 import { colorFromName, hueFromName, colorFromHue, meColor } from "./utils/colors";
 import { fetchCircles, fetchCircleMembers, fetchCircleMemberCounts } from "./api/supaCircles";
 import { supabase } from "./supabaseClient";
+import OcrReader from "./OcrReader";
 
 const STORAGE_FRIENDS = "bs_friends_v1";
 const STORAGE_BILL   = "bs_bill_v1";
@@ -469,14 +471,122 @@ export default function BillSplitter({ session }) {
   const [isExporting, setIsExporting] = useState(false);
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const downloadMenuRef = useRef(null);
+  const ocrReaderRef = useRef(null);
 
   // ---- Toast (nice popup) ----
-  const [toast, setToast] = useState(null); // { msg, kind: 'success'|'warning'|'error' }
-  function notify(msg, kind = 'success') {
-    setToast({ msg, kind });
-    window.clearTimeout(notify._t);
-    notify._t = window.setTimeout(() => setToast(null), 2600);
-  }
+const [toast, setToast] = useState(null); // { msg, kind: 'success'|'warning'|'error' }
+function notify(msg, kind = 'success') {
+  setToast({ msg, kind });
+  window.clearTimeout(notify._t);
+  notify._t = window.setTimeout(() => setToast(null), 2600);
+}
+
+  const [showOcrModal, setShowOcrModal] = useState(false);
+  const [scannedItems, setScannedItems] = useState([]);
+  const [scannedText, setScannedText] = useState("");
+
+  const handleOcrItems = (items = [], rawText = "") => {
+    if (!Array.isArray(items) || items.length === 0) {
+      notify("No totals found in the scanned receipt.", "warning");
+      return;
+    }
+
+    const normalized = items.map((item, idx) => ({
+      tempId: Date.now() + idx,
+      name: item.name || `Scanned item ${idx + 1}`,
+      qty: item.qty ? String(item.qty) : "1",
+      price: item.price !== undefined ? String(item.price) : "0",
+      participants: Array.isArray(item.participants) && item.participants.length
+        ? item.participants
+        : [],
+    }));
+
+    setShowItemModal(false);
+    setScannedItems(normalized);
+    setScannedText(rawText || "");
+    setShowOcrModal(true);
+  };
+
+  const handleOcrError = (message) => {
+    notify(message || "Failed to scan receipt.", "error");
+  };
+
+  const updateScannedItem = (index, patch) => {
+    setScannedItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, ...patch } : item))
+    );
+  };
+
+  const toggleScannedParticipant = (index, name) => {
+    setScannedItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        const exists = item.participants.includes(name);
+        return {
+          ...item,
+          participants: exists
+            ? item.participants.filter((p) => p !== name)
+            : [...item.participants, name],
+        };
+      })
+    );
+  };
+
+  const discardScannedItems = () => {
+    setShowOcrModal(false);
+    setScannedItems([]);
+    setScannedText("");
+  };
+
+  const commitScannedItems = () => {
+    if (!scannedItems.length) {
+      setShowOcrModal(false);
+      return;
+    }
+
+    const normalized = [];
+    for (const item of scannedItems) {
+      const name = item.name.trim();
+      const qtyNum = Number(item.qty);
+      const priceNum = Number(item.price);
+      if (!name) {
+        notify("Each scanned item needs a name.", "warning");
+        return;
+      }
+      if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
+        notify("Scanned item quantities must be positive numbers.", "warning");
+        return;
+      }
+      if (!Number.isFinite(priceNum) || priceNum < 0) {
+        notify("Scanned item prices must be zero or greater.", "warning");
+        return;
+      }
+      if (!item.participants.length) {
+        notify("Select at least one participant for each scanned item.", "warning");
+        return;
+      }
+
+      normalized.push({
+        id: item.tempId,
+        name,
+        qty: qtyNum,
+        price: priceNum,
+        participants: item.participants,
+      });
+    }
+
+    setBill((s) => ({
+      ...s,
+      items: [...s.items, ...normalized],
+    }));
+
+    notify(
+      `Added ${normalized.length} scanned ${normalized.length === 1 ? "item" : "items"}.`,
+      "success"
+    );
+
+    discardScannedItems();
+  };
 
   const [activeItemMenu, setActiveItemMenu] = useState(null); // { id, view } | null
 
@@ -929,7 +1039,7 @@ export default function BillSplitter({ session }) {
                     return (
                       <span
                         key={p.id ?? p.name}
-                        className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium bg-emerald-900/40 border border-emerald-500/40 text-emerald-200"
+                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium bg-emerald-900/40 border-emerald-500/40 text-emerald-200"
                       >
                         <span className="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
                         <span className="truncate max-w-[120px]">{p.name} (You)</span>
@@ -1057,7 +1167,14 @@ export default function BillSplitter({ session }) {
                 </div>
               </div>
 
-              <h2 className="text-lg font-semibold mb-3 text-white">Itemized Split</h2>
+              <h2 className="text-lg font-semibold text-white">Itemized Split</h2>
+              <OcrReader
+                ref={ocrReaderRef}
+                onParse={handleOcrItems}
+                onError={handleOcrError}
+                onStart={() => setShowItemModal(false)}
+                compact
+              />
 
               {/* Mobile list view */}
               <div className="sm:hidden space-y-2">
@@ -1497,22 +1614,141 @@ export default function BillSplitter({ session }) {
           </div>
       </div>
 
+      {/* OCR Review modal */}
+      {showOcrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl border border-slate-700/70 bg-slate-900/85 p-6 shadow-xl backdrop-blur">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-white text-lg font-semibold">Review scanned items</h3>
+                <p className="text-sm text-slate-300/80">Adjust details and pick participants before adding them to the bill.</p>
+              </div>
+              <button
+                type="button"
+                onClick={discardScannedItems}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 transition hover:bg-slate-800/70"
+                aria-label="Close scanned items"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {scannedItems.map((item, idx) => (
+                <div key={item.tempId} className="rounded-2xl border border-slate-700/70 bg-slate-950/70 p-4">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr),auto,auto]">
+                    <div>
+                      <label className="mb-1 block text-xs uppercase tracking-wide text-slate-400">Item name</label>
+                      <input
+                        value={item.name}
+                        onChange={(e) => updateScannedItem(idx, { name: e.target.value })}
+                        className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs uppercase tracking-wide text-slate-400">Qty</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={item.qty}
+                        onChange={(e) => updateScannedItem(idx, { qty: e.target.value })}
+                        className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs uppercase tracking-wide text-slate-400">Price ({bill.currency})</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={item.price}
+                        onChange={(e) => updateScannedItem(idx, { price: e.target.value })}
+                        className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <span className="text-xs uppercase tracking-wide text-slate-400">Participants</span>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {allParticipants.map((p) => {
+                        const active = item.participants.includes(p.name);
+                        const colors = participantColor(p.name);
+                        return (
+                          <button
+                            key={`${item.tempId}-${p.name}`}
+                            type="button"
+                            onClick={() => toggleScannedParticipant(idx, p.name)}
+                            className={`rounded-full border px-3 py-1 text-sm transition ${active ? '' : 'bg-slate-800/80 text-slate-200 border-slate-700/70 hover:bg-slate-700/80'}`}
+                            style={active ? { backgroundColor: colors.bg, borderColor: colors.border, color: colors.text } : undefined}
+                          >
+                            {p.name}
+                            {p.isCurrentUser ? ' (You)' : ''}
+                          </button>
+                        );
+                      })}
+                      {!allParticipants.length && (
+                        <span className="text-xs text-slate-500">Add participants in the section above first.</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {scannedText && import.meta.env.DEV && (
+                <details className="rounded-2xl border border-slate-700/70 bg-slate-950/70 p-3 text-xs text-slate-300">
+                  <summary className="cursor-pointer text-emerald-200">Raw OCR output</summary>
+                  <pre className="mt-2 whitespace-pre-wrap break-words text-slate-300">{scannedText}</pre>
+                </details>
+              )}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={discardScannedItems}
+                className="rounded-xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800/70"
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={commitScannedItems}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500"
+              >
+                <SaveIcon size={14} /> Add to bill
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ITEM MODAL */}
       {showItemModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-700/70 bg-slate-900/80 p-6 shadow-xl backdrop-blur">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 gap-3">
               <h3 className="text-white text-lg font-semibold">{editingId ? "Edit Item" : "Add Item"}</h3>
-              <button onClick={() => setShowItemModal(false)} className="text-slate-300 transition hover:text-white"><X /></button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => ocrReaderRef.current?.open?.()}
+                  className="inline-flex items-center gap-1 rounded-full border border-emerald-500/50 bg-emerald-600/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-200 transition hover:bg-emerald-600/30"
+                >
+                  <Upload size={14} /> Upload bill
+                </button>
+                <button onClick={() => setShowItemModal(false)} className="text-slate-300 transition hover:text-white"><X /></button>
+              </div>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); saveItemForm(); }}>
+            <div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="md:col-span-3">
                   <label className="mb-1 block text-sm text-slate-300">Item name</label>
                   <input
                     value={itemForm.name}
                     onChange={e => setItemForm(f => ({ ...f, name: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveItemForm(); } }}
                     className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-white"
                     placeholder="e.g., Butter Chicken"
                   />
@@ -1522,6 +1758,7 @@ export default function BillSplitter({ session }) {
                   <input
                     type="number" min={1} value={itemForm.qty}
                     onChange={e => setItemForm(f => ({ ...f, qty: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveItemForm(); } }}
                     className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-white"
                   />
                 </div>
@@ -1530,6 +1767,7 @@ export default function BillSplitter({ session }) {
                   <input
                     type="number" step="0.01" min={0} inputMode="decimal" value={itemForm.price}
                     onChange={e => setItemForm(f => ({ ...f, price: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveItemForm(); } }}
                     className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-white"
                   />
                 </div>
@@ -1564,14 +1802,15 @@ export default function BillSplitter({ session }) {
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={saveItemForm}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500"
                 >
                   {editingId ? <Pencil size={14} /> : <Plus size={14} />}
                   {editingId ? "Update Item" : "Add Item"}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

@@ -77,7 +77,7 @@ export default function FriendsPage() {
   }, [openMenu])
 
   async function addFriend(e) {
-    e.preventDefault()
+    if (e?.preventDefault) e.preventDefault()
     setError('')
     if (!name.trim()) return setError('Name is required')
 
@@ -208,10 +208,16 @@ export default function FriendsPage() {
         <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-emerald-200">
           <UserPlus size={18} className="text-emerald-300" /> Add a friend
         </div>
-        <form onSubmit={addFriend} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addFriend(e);
+              }
+            }}
             placeholder="Friend name"
             className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
           />
@@ -220,6 +226,12 @@ export default function FriendsPage() {
             <input
               value={account}
               onChange={(e) => setAccount(e.target.value.slice(0, 13))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addFriend(e);
+                }
+              }}
               placeholder="Account (optional)"
               maxLength={13}
               className="w-full bg-transparent text-white placeholder-slate-400 focus:outline-none"
@@ -227,7 +239,8 @@ export default function FriendsPage() {
           </div>
           <div className="sm:col-span-2 flex justify-end">
             <button
-              type="submit"
+              type="button"
+              onClick={addFriend}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500"
             >
               <SaveIcon size={14} /> {editingId ? 'Update friend' : 'Save friend'}
@@ -242,7 +255,7 @@ export default function FriendsPage() {
               </button>
             )}
           </div>
-        </form>
+        </div>
       </div>
 
       {/* Circles manager */}
