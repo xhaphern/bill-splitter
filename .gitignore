@@ -48,6 +48,7 @@ bun-debug.log*
 # Supabase local development
 /supabase/*
 !/supabase/migrations/
+!/supabase/migrations/**
 !/supabase/config.toml
 !/supabase/seed.sql
 /supabase/.temp/

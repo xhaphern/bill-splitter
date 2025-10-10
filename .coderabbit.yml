@@ -1,8 +1,7 @@
 reviews:
-  auto: true
-  enabled_branches:
-    - main
-    - feat/**
-    - fix/**
-    - chore/**
+  profile: default
   review_status: true
+  auto_review:
+    enabled: true
+    base_branches:
+      - main

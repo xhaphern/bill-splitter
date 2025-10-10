@@ -7,13 +7,7 @@ import { fetchCircles, fetchCircleMembers, createCircle, deleteCircle, addCircle
 
 const friendColor = colorFromName
 
-const normalizePhone = (value = '') => {
-  if (!value) return ''
-  const trimmed = value.trim()
-  const hasPlus = trimmed.startsWith('+')
-  const digits = trimmed.replace(/\D/g, '')
-  return hasPlus ? `+${digits}` : digits
-}
+const normalizePhone = (value = '') => (value ? value.replace(/\D/g, '') : '')
 
 export default function FriendsPage() {
   const [session, setSession] = useState(null)

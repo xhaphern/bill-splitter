@@ -8,7 +8,7 @@ function parseImagePayload(image) {
     if (typeof maybeBase64 === "string" && maybeBase64.trim()) {
       return {
         base64: maybeBase64.trim(),
-        mimeType: image.mimeType || image.mime_type || "image/jpeg"
+        mimeType: image.mimeType || image.mime_type || "image/jpeg",
       };
     }
   }
@@ -20,13 +20,13 @@ function parseImagePayload(image) {
     if (!match) return null;
     return {
       base64: match[2],
-      mimeType: match[1] || "image/jpeg"
+      mimeType: match[1] || "image/jpeg",
     };
   }
 
   return {
     base64: image,
-    mimeType: "image/jpeg"
+    mimeType: "image/jpeg",
   };
 }
 
@@ -51,43 +51,21 @@ async function scanWithGemini(imagePayload) {
             {
               parts: [
                 {
-                  text: `You are a receipt OCR assistant. Extract ALL purchased line items and key totals from this receipt image.
-Output ONLY a JSON object with this exact shape (no prose, markdown, or code fences):
-{
-  "items": [
-    {"name": "Chicken Burger", "qty": 1, "price": 42.50},
-    {"name": "Iced Tea", "qty": 2, "price": 15.00}
-  ],
-  "summary": {
-    "subtotal": 72.50,
-    "serviceCharge": 7.25,
-    "total": 79.75,
-    "currency": "MVR"
-  }
-}
-
-Rules:
-- Items must exclude subtotals, totals, tax, service charges, and discounts.
-- `qty` defaults to 1 when not shown on the receipt.
-- `price` is the unit price (no currency symbols).
-- `summary.subtotal`, `summary.serviceCharge`, and `summary.total` are monetary amounts (not percentages). Use null if a value is not visible.
-- `summary.currency` should return the major currency code (e.g., "MVR", "USD") if visible, otherwise null.
-- Return an empty array for items if nothing is detected, but keep the JSON object structure.
-- Do NOT include any text outside of the JSON object.`
+                  text: `You are a receipt OCR assistant. Extract ALL purchased line items and key totals from this receipt image.\nOutput ONLY a JSON object with this exact shape (no prose, markdown, or code fences):\n{\n  "items": [\n    {"name": "Chicken Burger", "qty": 1, "price": 42.50},\n    {"name": "Iced Tea", "qty": 2, "price": 15.00}\n  ],\n  "summary": {\n    "subtotal": 72.50,\n    "serviceCharge": 7.25,\n    "total": 79.75,\n    "currency": "MVR"\n  }\n}\n\nRules:\n- Items must exclude subtotals, totals, tax, service charges, and discounts.\n- "qty" defaults to 1 when not shown on the receipt.\n- "price" is the unit price (no currency symbols).\n- "summary.subtotal", "summary.serviceCharge", and "summary.total" are monetary amounts (not percentages). Use null if a value is not visible.\n- "summary.currency" should return the major currency code (e.g., "MVR", "USD") if visible, otherwise null.\n- Return an empty array for items if nothing is detected, but keep the JSON object structure.\n- Do NOT include any text outside of the JSON object.`,
                 },
                 {
                   inline_data: {
                     mime_type: mimeType || "image/jpeg",
-                    data: base64
-                  }
-                }
-              ]
-            }
+                    data: base64,
+                  },
+                },
+              ],
+            },
           ],
           generationConfig: {
             temperature: 0.1,
-            maxOutputTokens: 2048
-          }
+            maxOutputTokens: 2048,
+          },
         }),
         signal: controller.signal,
       }
@@ -108,8 +86,8 @@ Rules:
     try {
       parsed = JSON.parse(trimmed);
     } catch {
-      const braceStart = trimmed.indexOf('{');
-      const braceEnd = trimmed.lastIndexOf('}');
+      const braceStart = trimmed.indexOf("{");
+      const braceEnd = trimmed.lastIndexOf("}");
       if (braceStart !== -1 && braceEnd !== -1 && braceEnd > braceStart) {
         try {
           parsed = JSON.parse(trimmed.slice(braceStart, braceEnd + 1));
@@ -145,8 +123,8 @@ Rules:
     return { items: [], rawText: text, summary: {} };
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Gemini API request timed out');
+    if (error.name === "AbortError") {
+      throw new Error("Gemini API request timed out");
     }
     throw error;
   }
@@ -156,7 +134,7 @@ export const handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      body: JSON.stringify({ error: "Method not allowed" })
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
 
@@ -170,13 +148,11 @@ export const handler = async (event) => {
     if (!parsedImage) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Invalid image payload" })
+        body: JSON.stringify({ error: "Invalid image payload" }),
       };
     }
 
-    let result;
-
-    result = await scanWithGemini(parsedImage);
+    const result = await scanWithGemini(parsedImage);
 
     return {
       statusCode: 200,
@@ -185,16 +161,16 @@ export const handler = async (event) => {
         items: result.items,
         summary: result.summary || {},
         rawText: result.rawText,
-        provider: "gemini"
-      })
+        provider: "gemini",
+      }),
     };
   } catch (error) {
     console.error("Gemini OCR failed", error);
     return {
       statusCode: 500,
       body: JSON.stringify({
-        error: "OCR failed. Ensure GEMINI_API_KEY is configured in Netlify environment variables."
-      })
+        error: "OCR failed. Ensure GEMINI_API_KEY is configured in Netlify environment variables.",
+      }),
     };
   }
 };

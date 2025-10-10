@@ -7,9 +7,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   const missingVars = [];
   if (!supabaseUrl) missingVars.push("VITE_SUPABASE_URL");
   if (!supabaseAnonKey) missingVars.push("VITE_SUPABASE_ANON_KEY");
-  const msg = `Missing Supabase environment variable(s): ${missingVars.join(
-    ", "
-  )}.\nPlease set them in your environment before running the app.`;
+  const msg = `Missing Supabase environment variable(s): ${missingVars.join(", ")}.\nPlease set them in your environment before running the app.`;
   if (typeof window !== "undefined") {
     throw new Error(msg);
   } else {
