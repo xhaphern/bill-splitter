@@ -1,5 +1,5 @@
 reviews:
-  profile: default
+  profile: chill
   review_status: true
   auto_review:
     enabled: true

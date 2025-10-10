@@ -23,7 +23,7 @@ export default defineConfig({
   server: {
     port: DEV_PORT,
     host: DEV_HOST,
-    strictPort: true, // fail fast if 5173 is occupied
+    strictPort: true, // fail fast if the configured port is occupied
     watch: { usePolling: true }, // more reliable hot reloads
   },
   preview: {

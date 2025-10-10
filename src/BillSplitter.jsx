@@ -38,7 +38,7 @@ const EMPTY_SCAN_SUMMARY = {
   currency: null,
 };
 
-const normalizePhone = (value = "") => value.replace(/\D/g, "");
+const normalizePhone = (value) => String(value ?? "").replace(/\D/g, "");
 
 function SettingInput({ label, value, onChange }) {
   return (

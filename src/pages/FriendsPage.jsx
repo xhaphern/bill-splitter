@@ -284,10 +284,12 @@ export default function FriendsPage() {
       const term = memberSearch.trim()
       if (!term) { setMemberSearchResults([]); return }
       const digitTerm = term.replace(/\D/g, '')
+      const escapeFilterValue = (value = '') => value.replace(/([,()])/g, '\\$1')
+      const escapedTerm = escapeFilterValue(term)
       const orFilters = [
-        `name.ilike.%${term}%`,
-        `account.ilike.%${term}%`,
-        `phone.ilike.%${term}%`,
+        `name.ilike.%${escapedTerm}%`,
+        `account.ilike.%${escapedTerm}%`,
+        `phone.ilike.%${escapedTerm}%`,
       ]
       if (digitTerm) {
         orFilters.push(`phone.ilike.%${digitTerm}%`)

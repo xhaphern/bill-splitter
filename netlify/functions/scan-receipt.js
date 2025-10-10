@@ -134,6 +134,7 @@ export const handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
@@ -145,12 +146,13 @@ export const handler = async (event) => {
     const { image } = JSON.parse(body || "{}");
     const parsedImage = parseImagePayload(image);
 
-    if (!parsedImage) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Invalid image payload" }),
-      };
-    }
+  if (!parsedImage) {
+    return {
+      statusCode: 400,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "Invalid image payload" }),
+    };
+  }
 
     const result = await scanWithGemini(parsedImage);
 
@@ -168,6 +170,7 @@ export const handler = async (event) => {
     console.error("Gemini OCR failed", error);
     return {
       statusCode: 500,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         error: "OCR failed. Ensure GEMINI_API_KEY is configured in Netlify environment variables.",
       }),

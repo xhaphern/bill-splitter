@@ -92,7 +92,11 @@ const extractBillSummary = (text = "") => {
   const parseAmount = (line) => {
     const matches = line.match(/-?\d[\d,]*\.?\d+/g);
     if (!matches || !matches.length) return null;
-    const candidate = matches[matches.length - 1].replace(/,/g, "");
+    const match = matches[matches.length - 1];
+    const endIndex = line.lastIndexOf(match) + match.length;
+    const trailing = line.slice(endIndex).trim();
+    if (trailing.startsWith("%")) return null;
+    const candidate = match.replace(/,/g, "");
     const value = Number.parseFloat(candidate);
     return Number.isFinite(value) ? value : null;
   };
@@ -222,6 +226,7 @@ const OcrReader = React.forwardRef(({ onParse, onError, onStart, compact = false
         setStatus("Parsing");
         items = parseOcrText(result.rawText);
         rawText = result.rawText;
+        setStatus(() => `Done (${result.provider || "legacy"})`);
       } else {
         throw new Error("No OCR response from Gemini");
       }

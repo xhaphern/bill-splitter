@@ -30,13 +30,17 @@ self.addEventListener('fetch', (event) => {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
   event.respondWith((async () => {
-    const cached = await caches.match(event.request);
     try {
       const response = await fetch(event.request);
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(event.request, response.clone());
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(event.request, response.clone());
+      } catch (_) {
+        // Cache update failed (quota, storage, etc.) – proceed with network response
+      }
       return response;
     } catch (err) {
+      const cached = await caches.match(event.request);
       if (cached) return cached;
       return new Response(null, { status: 504, statusText: 'Gateway Timeout' });
     }
