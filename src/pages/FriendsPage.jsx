@@ -7,7 +7,7 @@ import { fetchCircles, fetchCircleMembers, createCircle, deleteCircle, addCircle
 
 const friendColor = colorFromName
 
-const normalizePhone = (value = '') => (value ? value.replace(/\D/g, '') : '')
+const normalizePhone = (value = '') => (value ? value.replace(/\D/g, '').slice(0, 15) : '')
 
 export default function FriendsPage() {
   const [session, setSession] = useState(null)
@@ -98,6 +98,7 @@ export default function FriendsPage() {
   const applyFriendPatch = (id, patch) => {
     setFriends((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)))
     setCircleMembers((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)))
+    setFriendCatalog((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)))
     setCircleMembersCache((prev) => {
       const next = {}
       Object.entries(prev).forEach(([key, members]) => {
@@ -360,7 +361,7 @@ export default function FriendsPage() {
             <Phone size={16} className="text-emerald-300" />
             <input
               value={phone}
-              onChange={(e) => setPhone(normalizePhone(e.target.value))}
+              onChange={(e) => setPhone(e.target.value.replace(/[^0-9+]/g, '').slice(0, 16))}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -369,6 +370,7 @@ export default function FriendsPage() {
               }}
               placeholder="Mobile (+15551234567)"
               inputMode="tel"
+              minLength={7}
               className="w-full bg-transparent text-white placeholder-slate-400 focus:outline-none"
             />
           </div>
