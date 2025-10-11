@@ -26,10 +26,10 @@ This app relies on Google's **Gemini API** to extract line items from receipt im
 
 ## Pricing
 
-- **Free tier**: 1,500 requests/day
+- **Free usage**: governed by Google Cloud $300 free-trial credits and service quotas (no fixed per-image always-free allowance)
 - **Model**: `gemini-2.0-flash-exp`
-- **Beyond free tier**: $0.00025 per image
-- [Pricing details](https://ai.google.dev/pricing)
+- **Beyond credits**: input ≈ $0.0001935 per image, output ≈ $0.04 per image
+- [Pricing details](https://cloud.google.com/vertex-ai/generative-ai/pricing)
 
 ## Testing Locally
 

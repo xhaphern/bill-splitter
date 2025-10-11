@@ -726,8 +726,15 @@ function notify(msg, kind = 'success') {
     }
 
     let warningMessage = null;
-    const scannedTotal = Number(comparison?.summary?.total);
-    if (!hadExistingItems && Number.isFinite(scannedTotal)) {
+    const rawSummaryTotal = comparison?.summary?.total;
+    let scannedTotal = null;
+    if (typeof rawSummaryTotal === 'number' && Number.isFinite(rawSummaryTotal)) {
+      scannedTotal = rawSummaryTotal;
+    } else if (typeof rawSummaryTotal === 'string' && rawSummaryTotal.trim() !== '') {
+      const parsed = Number(rawSummaryTotal.replace(/,/g, ''));
+      if (Number.isFinite(parsed)) scannedTotal = parsed;
+    }
+    if (!hadExistingItems && scannedTotal !== null) {
       const diff = Math.abs(scannedTotal - comparison.totals.total);
       if (diff > 0.5) {
         warningMessage = `Receipt total (${formatMoney(scannedTotal, currencyCode)}) differs from the calculator total (${formatMoney(comparison.totals.total, currencyCode)}). Double-check discounts, taxes, or service charges.`;
