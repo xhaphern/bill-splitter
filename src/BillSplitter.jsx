@@ -40,6 +40,15 @@ const EMPTY_SCAN_SUMMARY = {
 
 const normalizePhone = (value) => String(value ?? "").replace(/\D/g, "");
 
+const parseNumber = (value) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.replace(/,/g, ""));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+};
+
 function SettingInput({ label, value, onChange }) {
   return (
     <div className="rounded-2xl border border-slate-700/70 bg-slate-950/70 p-3">
@@ -534,6 +543,31 @@ function notify(msg, kind = 'success') {
   const [scannedText, setScannedText] = useState("");
   const [scannedSummary, setScannedSummary] = useState(EMPTY_SCAN_SUMMARY);
 
+  const mergeScannedItems = (items) => {
+    const merged = [];
+    items.forEach((item) => {
+      const trimmedName = (item.name || "").trim();
+      const isModifierLabel =
+        trimmedName.startsWith("-") ||
+        trimmedName.startsWith("+") ||
+        trimmedName.startsWith("(") ||
+        trimmedName.toLowerCase().startsWith("add ");
+      const isZeroAddon = Number(item.price) === 0 && trimmedName && merged.length > 0;
+
+      if ((isModifierLabel || isZeroAddon) && merged.length > 0) {
+        const last = merged[merged.length - 1];
+        const sanitized = trimmedName.replace(/^[+\-()]/, "").trim();
+        last.name = sanitized ? `${last.name} ${sanitized}` : last.name;
+        last.price = Number((Number(last.price) + Number(item.price || 0)).toFixed(2));
+        return;
+      }
+
+      merged.push({ ...item, name: trimmedName || item.name });
+    });
+
+    return merged;
+  };
+
   const handleOcrItems = (result) => {
     const items = Array.isArray(result?.items) ? result.items : [];
     const rawText = typeof result?.rawText === "string" ? result.rawText : "";
@@ -543,15 +577,6 @@ function notify(msg, kind = 'success') {
       notify("No totals found in the scanned receipt.", "warning");
       return;
     }
-
-    const parseNumber = (value) => {
-      if (typeof value === "number" && Number.isFinite(value)) return value;
-      if (typeof value === "string" && value.trim()) {
-        const parsed = Number(value.replace(/,/g, ""));
-        if (Number.isFinite(parsed)) return parsed;
-      }
-      return null;
-    };
 
     const normalizedSummary = {
       subtotal: parseNumber(summary.subtotal),
@@ -576,8 +601,10 @@ function notify(msg, kind = 'success') {
         : [],
     }));
 
+    const merged = mergeScannedItems(normalized);
+
     setShowItemModal(false);
-    setScannedItems(normalized);
+    setScannedItems(merged);
     setScannedText(rawText || "");
     setShowOcrModal(true);
   };

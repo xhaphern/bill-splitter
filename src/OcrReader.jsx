@@ -101,17 +101,18 @@ const extractBillSummary = (text = "") => {
     return Number.isFinite(value) ? value : null;
   };
 
-  const currencyCodes = new Set(["MVR","USD","EUR","GBP","INR","SGD","AUD","CAD","JPY","MYR","CNY","CHF","AED","SAR"]);
-  const extractCurrency = (line) => {
-    const codeMatch = line.match(/\b([A-Z]{2,4})\s*[-]?\s*\d/);
-    if (codeMatch) {
-      const candidate = codeMatch[1].toUpperCase();
-      if (currencyCodes.has(candidate)) return candidate;
-    }
-    const knownMatch = line.match(/\b(MVR|USD|EUR|GBP|INR|SGD|AUD|CAD|JPY|MYR|CNY|CHF|AED|SAR)\b/i);
-    if (knownMatch) return knownMatch[1].toUpperCase();
-    return null;
-  };
+const SUPPORTED_CURRENCIES = ["MVR", "USD"];
+const currencyCodes = new Set(SUPPORTED_CURRENCIES);
+const extractCurrency = (line) => {
+  const codeMatch = line.match(/\b([A-Z]{2,4})\s*[-]?\s*\d/);
+  if (codeMatch) {
+    const candidate = codeMatch[1].toUpperCase();
+    if (currencyCodes.has(candidate)) return candidate;
+  }
+  const knownMatch = line.match(new RegExp(`\\b(${SUPPORTED_CURRENCIES.join("|")})\\b`, "i"));
+  if (knownMatch) return knownMatch[1].toUpperCase();
+  return null;
+};
 
   lines.forEach((line) => {
     const lower = line.toLowerCase();
@@ -158,7 +159,15 @@ const OcrReader = React.forwardRef(({ onParse, onError, onStart, compact = false
   const endpoint = useMemo(() => {
     const explicit = import.meta.env.VITE_OCR_ENDPOINT?.trim();
     if (explicit) return explicit;
-    return import.meta.env.PROD ? DEFAULT_ENDPOINT : null;
+    if (import.meta.env.PROD) return DEFAULT_ENDPOINT;
+    if (typeof window !== "undefined") {
+      const { hostname, port } = window.location;
+      // Netlify Dev serves the app on localhost:8888 and proxies /.netlify/functions/*
+      if (hostname === "localhost" && port === "8888") {
+        return DEFAULT_ENDPOINT;
+      }
+    }
+    return null;
   }, []);
 
   useImperativeHandle(ref, () => ({
@@ -204,7 +213,7 @@ const OcrReader = React.forwardRef(({ onParse, onError, onStart, compact = false
 
     if (!endpoint) {
       setStatus("OCR unavailable");
-      onError?.("Receipt scanning requires the Gemini OCR endpoint. Configure VITE_OCR_ENDPOINT for local testing.");
+      onError?.("Receipt scanning requires the Gemini OCR endpoint. Run `netlify dev` or set VITE_OCR_ENDPOINT for local testing.");
       setIsProcessing(false);
       if (inputRef.current) inputRef.current.value = "";
       return;
