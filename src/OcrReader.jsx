@@ -74,12 +74,85 @@ const parseOcrText = (text = "") => {
   return items;
 };
 
+const extractBillSummary = (text = "") => {
+  const summary = {
+    subtotal: null,
+    serviceChargeAmount: null,
+    total: null,
+    currency: null,
+  };
+
+  if (!text) return summary;
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/[|]/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  const parseAmount = (line) => {
+    const matches = line.match(/-?\d[\d,]*\.?\d+/g);
+    if (!matches || !matches.length) return null;
+    const match = matches[matches.length - 1];
+    const endIndex = line.lastIndexOf(match) + match.length;
+    const trailing = line.slice(endIndex).trim();
+    if (trailing.startsWith("%")) return null;
+    const candidate = match.replace(/,/g, "");
+    const value = Number.parseFloat(candidate);
+    return Number.isFinite(value) ? value : null;
+  };
+
+  const currencyCodes = new Set(["MVR","USD","EUR","GBP","INR","SGD","AUD","CAD","JPY","MYR","CNY","CHF","AED","SAR"]);
+  const extractCurrency = (line) => {
+    const codeMatch = line.match(/\b([A-Z]{2,4})\s*[-]?\s*\d/);
+    if (codeMatch) {
+      const candidate = codeMatch[1].toUpperCase();
+      if (currencyCodes.has(candidate)) return candidate;
+    }
+    const knownMatch = line.match(/\b(MVR|USD|EUR|GBP|INR|SGD|AUD|CAD|JPY|MYR|CNY|CHF|AED|SAR)\b/i);
+    if (knownMatch) return knownMatch[1].toUpperCase();
+    return null;
+  };
+
+  lines.forEach((line) => {
+    const lower = line.toLowerCase();
+    if (!summary.currency) {
+      const currency = extractCurrency(line);
+      if (currency) summary.currency = currency;
+    }
+
+    if (summary.subtotal === null && (lower.includes('subtotal') || lower.includes('sub total'))) {
+      const amount = parseAmount(line);
+      if (amount !== null) summary.subtotal = amount;
+      return;
+    }
+
+    if (
+      summary.serviceChargeAmount === null &&
+      (lower.includes('service charge') || lower.includes('svc charge') || lower.includes('service fee'))
+    ) {
+      const amount = parseAmount(line);
+      if (amount !== null) summary.serviceChargeAmount = amount;
+      return;
+    }
+
+    const mentionsTotal = lower.includes('total') || lower.includes('amount due') || lower.includes('grand total') || lower.includes('balance due');
+    const isSubtotal = lower.includes('subtotal');
+    const isServiceOrTax = lower.includes('service') || lower.includes('tax');
+
+    if (summary.total === null && mentionsTotal && !isSubtotal && !isServiceOrTax) {
+      const amount = parseAmount(line);
+      if (amount !== null) summary.total = amount;
+    }
+  });
+
+  return summary;
+};
+
 const DEFAULT_ENDPOINT = "/.netlify/functions/scan-receipt";
 
 const OcrReader = React.forwardRef(({ onParse, onError, onStart, compact = false }, ref) => {
   const inputRef = useRef(null);
   const [status, setStatus] = useState("");
-  const [progress, setProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const endpoint = useMemo(() => {
@@ -99,7 +172,7 @@ const OcrReader = React.forwardRef(({ onParse, onError, onStart, compact = false
   }));
 
   const runRemoteOcr = async (dataUrl) => {
-    if (!endpoint) return "";
+    if (!endpoint) return null;
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -107,22 +180,19 @@ const OcrReader = React.forwardRef(({ onParse, onError, onStart, compact = false
     });
     if (!response.ok) throw new Error(`OCR request failed (${response.status})`);
     const payload = await response.json();
-    return payload.text || "";
-  };
 
-  const runLocalOcr = async (file) => {
-    setStatus("Processing on device");
-    setProgress(0);
+    // New API returns items directly
+    if (payload.items && Array.isArray(payload.items)) {
+      return {
+        items: payload.items,
+        summary: payload.summary || {},
+        rawText: payload.rawText || "",
+        provider: payload.provider,
+      };
+    }
 
-    const { recognize } = await import("tesseract.js");
-    const { data } = await recognize(file, "eng", {
-      logger: (m) => {
-        if (m.progress) setProgress(Math.round((m.progress || 0) * 100));
-        if (m.status) setStatus(m.status);
-      },
-    });
-
-    return data.text || "";
+    // Legacy fallback: text-based parsing
+    return { items: null, rawText: payload.text || "", provider: "legacy" };
   };
 
   const handleFileChange = async (event) => {
@@ -131,35 +201,72 @@ const OcrReader = React.forwardRef(({ onParse, onError, onStart, compact = false
 
     onStart?.();
     setIsProcessing(true);
-    setProgress(0);
+
+    if (!endpoint) {
+      setStatus("OCR unavailable");
+      onError?.("Receipt scanning requires the Gemini OCR endpoint. Configure VITE_OCR_ENDPOINT for local testing.");
+      setIsProcessing(false);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
 
     try {
       setStatus("Uploading");
       const dataUrl = await fileToDataUrl(file);
 
-      let text = "";
-      try {
-        setStatus("Scanning");
-        text = await runRemoteOcr(dataUrl);
-      } catch (remoteError) {
-        if (endpoint) console.warn("Remote OCR failed, falling back to local", remoteError);
+      let items = [];
+      let rawText = "";
+      let result = null;
+
+      setStatus("Scanning with Gemini");
+      result = await runRemoteOcr(dataUrl);
+
+      if (result && result.items && result.items.length > 0) {
+        items = result.items;
+        rawText = result.rawText;
+        setStatus(() => `Done (${result.provider || "gemini"})`);
+      } else if (result && result.rawText) {
+        // Parse text-based response
+        setStatus("Parsing");
+        items = parseOcrText(result.rawText);
+        rawText = result.rawText;
+        setStatus(() => `Done (${result.provider || "legacy"})`);
+      } else {
+        throw new Error("No OCR response from Gemini");
       }
 
-      if (!text) {
-        text = await runLocalOcr(file);
+      if (!items.length) {
+        throw new Error("No items detected");
       }
 
-      setStatus("Parsing");
-      const items = parseOcrText(text);
-      if (onParse) onParse(items, text);
-      setStatus("Done");
+      const structuredSummary = result?.summary && typeof result.summary === "object" ? result.summary : {};
+      const toNumber = (value) => {
+        if (value === null || value === undefined) return null;
+        if (typeof value === "number") return Number.isFinite(value) ? value : null;
+        if (typeof value === "string") {
+          const parsed = Number(value.replace(/,/g, ""));
+          return Number.isFinite(parsed) ? parsed : null;
+        }
+        return null;
+      };
+      const textSummary = extractBillSummary(rawText);
+      const mergedSummary = {
+        subtotal: toNumber(structuredSummary.subtotal) ?? textSummary.subtotal,
+        serviceChargeAmount:
+          toNumber(structuredSummary.serviceChargeAmount) ??
+          toNumber(structuredSummary.serviceCharge) ??
+          textSummary.serviceChargeAmount,
+        total: toNumber(structuredSummary.total) ?? textSummary.total,
+        currency: structuredSummary.currency || textSummary.currency,
+      };
+
+      onParse?.({ items, rawText, summary: mergedSummary });
     } catch (err) {
       console.error("OCR scan failed", err);
       setStatus("Failed");
-      if (onError) onError("Failed to scan receipt. Please try again.");
+      onError?.("Failed to scan receipt with Gemini. Please try again with a clearer image.");
     } finally {
       setIsProcessing(false);
-      setProgress(0);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
@@ -179,9 +286,6 @@ const OcrReader = React.forwardRef(({ onParse, onError, onStart, compact = false
         <div>
           <span className="font-semibold text-emerald-200/80">Upload bill:</span>{" "}
           <span className="text-slate-300/90">{status}</span>
-          {progress > 0 && progress < 100 && (
-            <span className="ml-2 text-slate-400">{progress}%</span>
-          )}
         </div>
       )}
     </div>

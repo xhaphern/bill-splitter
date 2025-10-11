@@ -28,6 +28,7 @@ export {
   Calculator,
   Pencil,
   CreditCard,
+  Phone,
   CheckCircle2,
   AlertTriangle,
   XCircle,

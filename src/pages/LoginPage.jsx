@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { supabase } from "../supabaseClient";
+import { supabase, getRedirectUrl } from "../supabaseClient";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Receipt, LogOut, Github } from "../icons";
 
@@ -32,8 +32,8 @@ export default function LoginPage() {
     return () => listener.subscription.unsubscribe();
   }, [navigate, from]);
 
-  // OAuth redirect: prefer explicit env override, fallback to /split for Netlify/Vercel
-  const redirectTo = (import.meta.env.VITE_REDIRECT_URL) || `${window.location.origin}/split`;
+  // OAuth redirect URL is resolved by getRedirectUrl()
+  const redirectTo = getRedirectUrl();
 
   const signInWithGitHub = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
