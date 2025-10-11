@@ -544,15 +544,25 @@ function notify(msg, kind = 'success') {
       return;
     }
 
+    const parseNumber = (value) => {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string" && value.trim()) {
+        const parsed = Number(value.replace(/,/g, ""));
+        if (Number.isFinite(parsed)) return parsed;
+      }
+      return null;
+    };
+
     const normalizedSummary = {
-      subtotal: Number.isFinite(summary.subtotal) ? summary.subtotal : null,
-      serviceChargeAmount: Number.isFinite(summary.serviceChargeAmount)
-        ? summary.serviceChargeAmount
-        : Number.isFinite(summary.serviceCharge)
-          ? summary.serviceCharge
+      subtotal: parseNumber(summary.subtotal),
+      serviceChargeAmount: parseNumber(
+        summary.serviceChargeAmount ?? summary.serviceCharge
+      ),
+      total: parseNumber(summary.total),
+      currency:
+        typeof summary.currency === "string" && summary.currency.trim()
+          ? summary.currency
           : null,
-      total: Number.isFinite(summary.total) ? summary.total : null,
-      currency: summary.currency || null,
     };
     setScannedSummary(normalizedSummary);
 

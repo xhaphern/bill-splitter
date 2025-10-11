@@ -101,9 +101,13 @@ const extractBillSummary = (text = "") => {
     return Number.isFinite(value) ? value : null;
   };
 
+  const currencyCodes = new Set(["MVR","USD","EUR","GBP","INR","SGD","AUD","CAD","JPY","MYR","CNY","CHF","AED","SAR"]);
   const extractCurrency = (line) => {
     const codeMatch = line.match(/\b([A-Z]{2,4})\s*[-]?\s*\d/);
-    if (codeMatch) return codeMatch[1].toUpperCase();
+    if (codeMatch) {
+      const candidate = codeMatch[1].toUpperCase();
+      if (currencyCodes.has(candidate)) return candidate;
+    }
     const knownMatch = line.match(/\b(MVR|USD|EUR|GBP|INR|SGD|AUD|CAD|JPY|MYR|CNY|CHF|AED|SAR)\b/i);
     if (knownMatch) return knownMatch[1].toUpperCase();
     return null;

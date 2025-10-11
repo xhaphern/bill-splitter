@@ -5,9 +5,19 @@ function parseImagePayload(image) {
 
   if (typeof image === "object" && image !== null) {
     const maybeBase64 = image.base64 || image.data || image.image;
-    if (typeof maybeBase64 === "string" && maybeBase64.trim()) {
+    if (typeof maybeBase64 === "string") {
+      const trimmed = maybeBase64.trim();
+      if (!trimmed) return null;
+      if (trimmed.startsWith("data:")) {
+        const match = trimmed.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match) return null;
+        return {
+          base64: match[2],
+          mimeType: image.mimeType || image.mime_type || match[1] || "image/jpeg",
+        };
+      }
       return {
-        base64: maybeBase64.trim(),
+        base64: trimmed,
         mimeType: image.mimeType || image.mime_type || "image/jpeg",
       };
     }
