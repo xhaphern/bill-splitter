@@ -168,3 +168,41 @@
     background-position: 200% 50%;
   }
 }
+/* --- Page shell spacing (safe above bottom tab bar) --- */
+.page-shell{
+  padding-top: 1rem;                /* ~pt-4 */
+  padding-left: 1rem;               /* px-4 */
+  padding-right: 1rem;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); /* room above tab bar */
+}
+@media (min-width: 640px){
+  .page-shell{ padding-left: 1.25rem; padding-right: 1.25rem; } /* sm:px-5 */
+}
+/* --- Page shell spacing (safe above bottom tab bar) --- */
+.page-shell{
+  padding-top: 1rem;                /* ~pt-4 */
+  padding-left: 1rem;               /* px-4 */
+  padding-right: 1rem;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); /* room above tab bar */
+}
+@media (min-width: 640px){
+  .page-shell{ padding-left: 1.25rem; padding-right: 1.25rem; } /* sm:px-5 */
+}
+/* === Global page padding (no page file edits) ===
+   Applies to top-level pages rendered as <main> or <section> directly under #root.
+   Safe above the bottom tab bar (extra pb) and adds reasonable horizontal/vertical padding.
+   If a page should NOT get this, add a wrapper or override with a more specific selector. */
+#root > main,
+#root > section {
+  padding-top: 1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 640px){
+  #root > main,
+  #root > section {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}
