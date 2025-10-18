@@ -44,26 +44,17 @@ export default function HistoryPage() {
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
       try {
-        // get user id to satisfy RLS and avoid scanning other users
-        const { data: uData, error: uErr } = await supabase.auth.getUser();
-        if (uErr) throw uErr;
-        const userId = uData?.user?.id;
-
-        const query = supabase
+        // RLS automatically filters by user - no need for getUser() first
+        const { data, error } = await supabase
           .from("bills")
           .select("id, title, currency, payload, created_at")
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(100); // Add limit for better performance
 
-        // If your RLS policy requires user_id equality, include it:
-        if (userId) query.eq("user_id", userId);
-
-        const { data, error } = await query;
         if (error) throw error;
 
         if (!cancelled) {
-          console.log("History data fetched:", data);
           setRows(data ?? []);
         }
       } catch (err) {

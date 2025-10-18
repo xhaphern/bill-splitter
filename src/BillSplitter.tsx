@@ -1319,9 +1319,9 @@ function notify(msg, kind = 'success') {
                   />
                   <button
                     onClick={addFriend}
-                    className="sm:col-span-3 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500"
+                    className="btn-apple btn-primary sm:col-span-3"
                   >
-                    <SaveIcon size={14} /> Save friend
+                    <SaveIcon size={15} /> Save friend
                   </button>
                 </div>
               )}
@@ -1350,7 +1350,8 @@ function notify(msg, kind = 'success') {
                       <span className="truncate max-w-[120px]">{p.name}</span>
                       <button
                         onClick={() => removeFriend(p.id, p.name)}
-                        className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-red-500/30 hover:text-white"
+                        className="ml-1 btn-icon btn-icon-danger"
+                        style={{ width: '24px', height: '24px' }}
                         aria-label={`Remove ${p.name}`}
                       >
                         <X size={12} />
@@ -1487,36 +1488,46 @@ function notify(msg, kind = 'success') {
                           setActiveItemMenu(menuOpen ? null : { id: it.id, view: 'mobile' });
                         }}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 transition hover:bg-slate-800/60"
+                        className="absolute right-2 top-2 btn-icon"
                         aria-label="Item actions"
                       >
                         <MoreVertical size={16} />
                       </button>
                       {menuOpen && (
                         <div
-                          className="absolute right-2 -top-2 z-30 w-36 -translate-y-full transform rounded-xl border border-slate-700/70 bg-slate-900/95 p-2 text-sm text-slate-100 shadow"
+                          className="action-menu absolute right-2 -top-2 z-30 -translate-y-full transform"
                           onClick={(e) => e.stopPropagation()}
                           onMouseDown={(e) => e.stopPropagation()}
                         >
                           <button
                             type="button"
-                            className="block w-full rounded-lg px-3 py-2 text-left text-blue-200 hover:bg-blue-500/10"
+                            className="menu-item"
                             onClick={() => {
                               setActiveItemMenu(null);
                               openEditItem(it);
                             }}
                           >
-                            Edit item
+                            <div className="menu-item-leading">
+                              <div className="menu-item-symbol">✎</div>
+                              <div className="menu-item-content">
+                                <div className="menu-item-label">Edit item</div>
+                              </div>
+                            </div>
                           </button>
                           <button
                             type="button"
-                            className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-red-200 hover:bg-red-500/10"
+                            className="menu-item menu-item-danger"
                             onClick={() => {
                               setActiveItemMenu(null);
                               deleteItem(it.id);
                             }}
                           >
-                            Delete item
+                            <div className="menu-item-leading">
+                              <div className="menu-item-symbol">🗑</div>
+                              <div className="menu-item-content">
+                                <div className="menu-item-label">Delete item</div>
+                              </div>
+                            </div>
                           </button>
                         </div>
                       )}
@@ -1570,36 +1581,46 @@ function notify(msg, kind = 'success') {
                           setActiveItemMenu(menuOpen ? null : { id: it.id, view: 'tablet' });
                         }}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 transition hover:bg-slate-800/60"
+                        className="absolute right-2 top-2 btn-icon"
                         aria-label="Item actions"
                       >
                         <MoreVertical size={16} />
                       </button>
                       {menuOpen && (
                         <div
-                          className="absolute right-2 -top-2 z-30 w-36 -translate-y-full transform rounded-xl border border-slate-700/70 bg-slate-900/95 p-2 text-sm text-slate-100 shadow"
+                          className="action-menu absolute right-2 -top-2 z-30 -translate-y-full transform"
                           onClick={(e) => e.stopPropagation()}
                           onMouseDown={(e) => e.stopPropagation()}
                         >
                           <button
                             type="button"
-                            className="block w-full rounded-lg px-3 py-2 text-left text-blue-200 hover:bg-blue-500/10"
+                            className="menu-item"
                             onClick={() => {
                               setActiveItemMenu(null);
                               openEditItem(it);
                             }}
                           >
-                            Edit item
+                            <div className="menu-item-leading">
+                              <div className="menu-item-symbol">✎</div>
+                              <div className="menu-item-content">
+                                <div className="menu-item-label">Edit item</div>
+                              </div>
+                            </div>
                           </button>
                           <button
                             type="button"
-                            className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-red-200 hover:bg-red-500/10"
+                            className="menu-item menu-item-danger"
                             onClick={() => {
                               setActiveItemMenu(null);
                               deleteItem(it.id);
                             }}
                           >
-                            Delete item
+                            <div className="menu-item-leading">
+                              <div className="menu-item-symbol">🗑</div>
+                              <div className="menu-item-content">
+                                <div className="menu-item-label">Delete item</div>
+                              </div>
+                            </div>
                           </button>
                         </div>
                       )}
@@ -1682,36 +1703,46 @@ function notify(msg, kind = 'success') {
                                 const menuOpen = activeItemMenu?.id === it.id && activeItemMenu?.view === 'desktop';
                                 setActiveItemMenu(menuOpen ? null : { id: it.id, view: 'desktop' });
                               }}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 transition hover:bg-slate-800/60"
+                              className="btn-icon"
                               aria-label="Item actions"
                             >
                               <MoreVertical size={16} />
                             </button>
                             {activeItemMenu?.id === it.id && activeItemMenu?.view === 'desktop' && (
                               <div
-                                className="absolute right-0 -top-2 z-30 w-36 -translate-y-full transform rounded-xl border border-slate-700/70 bg-slate-900/95 p-2 text-sm text-slate-100 shadow"
+                                className="action-menu absolute right-0 -top-2 z-30 -translate-y-full transform"
                                 onClick={(e) => e.stopPropagation()}
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 <button
                                   type="button"
-                                className="block w-full rounded-lg px-3 py-2 text-left text-blue-200 hover:bg-blue-500/10"
-                                onClick={() => {
-                                  setActiveItemMenu(null);
-                                  openEditItem(it);
-                                }}
-                              >
-                                Edit item
-                              </button>
+                                  className="menu-item"
+                                  onClick={() => {
+                                    setActiveItemMenu(null);
+                                    openEditItem(it);
+                                  }}
+                                >
+                                  <div className="menu-item-leading">
+                                    <div className="menu-item-symbol">✎</div>
+                                    <div className="menu-item-content">
+                                      <div className="menu-item-label">Edit item</div>
+                                    </div>
+                                  </div>
+                                </button>
                                 <button
                                   type="button"
-                                  className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-red-200 hover:bg-red-500/10"
+                                  className="menu-item menu-item-danger"
                                   onClick={() => {
                                     setActiveItemMenu(null);
                                     deleteItem(it.id);
                                   }}
                                 >
-                                  Delete item
+                                  <div className="menu-item-leading">
+                                    <div className="menu-item-symbol">🗑</div>
+                                    <div className="menu-item-content">
+                                      <div className="menu-item-label">Delete item</div>
+                                    </div>
+                                  </div>
                                 </button>
                               </div>
                             )}
@@ -1846,7 +1877,7 @@ function notify(msg, kind = 'success') {
                   <button
                     type="button"
                     onClick={() => setSettingsOpen((v) => !v)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 transition hover:bg-slate-800/60"
+                    className="btn-icon"
                     aria-label={settingsOpen ? 'Collapse settings' : 'Expand settings'}
                   >
                     <ChevronDown size={16} className={`transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
@@ -2000,16 +2031,16 @@ function notify(msg, kind = 'success') {
               <button
                 type="button"
                 onClick={discardScannedItems}
-                className="rounded-xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800/70"
+                className="btn-apple btn-secondary"
               >
                 Discard
               </button>
               <button
                 type="button"
                 onClick={commitScannedItems}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500"
+                className="btn-apple btn-primary"
               >
-                <SaveIcon size={14} /> Add to bill
+                <SaveIcon size={15} /> Add to bill
               </button>
             </div>
           </div>
@@ -2090,16 +2121,16 @@ function notify(msg, kind = 'success') {
                 <button
                   type="button"
                   onClick={() => setShowItemModal(false)}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-700/70 bg-slate-900/70 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800/70"
+                  className="btn-apple btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={saveItemForm}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500"
+                  className="btn-apple btn-primary"
                 >
-                  {editingId ? <Pencil size={14} /> : <Plus size={14} />}
+                  {editingId ? <Pencil size={15} /> : <Plus size={15} />}
                   {editingId ? "Update Item" : "Add Item"}
                 </button>
               </div>
@@ -2138,7 +2169,7 @@ function notify(msg, kind = 'success') {
             </div>
 
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={()=>setShowProfile(false)} className="rounded-xl border border-slate-700/70 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800/70">Close</button>
+              <button onClick={()=>setShowProfile(false)} className="btn-apple btn-secondary">Close</button>
             </div>
           </div>
         </div>

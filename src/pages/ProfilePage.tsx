@@ -202,7 +202,7 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
           <button
             type="button"
             onClick={handleSaveProfile}
-            className="w-full inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-slate-900 bg-emerald-500/90 shadow transition hover:bg-emerald-400"
+            className="btn-apple btn-primary w-full"
           >
             Save profile
           </button>
@@ -210,7 +210,7 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
         <button
           type="button"
           onClick={signOut}
-          className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold text-red-200 border-red-500/50 bg-red-900/20 transition hover:bg-red-900/40"
+          className="btn-apple btn-destructive w-full"
         >
           <LogOut size={18} />
           Sign out

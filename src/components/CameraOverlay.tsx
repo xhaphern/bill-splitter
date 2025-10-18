@@ -152,7 +152,7 @@ export default function CameraOverlay({
               onClick={() => {
                 onUpload?.();
               }}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+              className="btn-apple btn-primary"
             >
               <Upload size={18} />
               Upload bill
@@ -162,7 +162,7 @@ export default function CameraOverlay({
               onClick={() => {
                 onAddManual?.();
               }}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/15"
+              className="btn-apple btn-secondary"
             >
               <Plus size={18} />
               Add manually

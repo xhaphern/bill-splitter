@@ -244,10 +244,11 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
       try {
         setProgress(0.25);
         const payload = JSON.stringify({
-          imageBase64: dataUrl,
+          image: dataUrl,
         });
 
-        const res = await fetch("/.netlify/functions/scan-receipt", {
+        const endpoint = import.meta.env.VITE_OCR_ENDPOINT || "/.netlify/functions/scan-receipt";
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
