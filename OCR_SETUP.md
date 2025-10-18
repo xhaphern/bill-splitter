@@ -12,7 +12,7 @@ This app relies on Google's **Gemini API** to extract line items from receipt im
 2. **Add the key to Netlify**
 
    - Netlify dashboard → **Site settings → Environment variables**
-   - Add `GEMINI_API_KEY` with your key and redeploy
+   - Add `VITE_GEMINI_API_KEY` with your key and redeploy
 
 3. **All set**
 
@@ -42,7 +42,7 @@ This app relies on Google's **Gemini API** to extract line items from receipt im
 2. Create `.env` in the project root:
 
    ```env
-   GEMINI_API_KEY=your_gemini_key_here
+   VITE_GEMINI_API_KEY=your_gemini_key_here
    ```
 
 3. Run the local function + Vite dev server:
@@ -57,13 +57,13 @@ This app relies on Google's **Gemini API** to extract line items from receipt im
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `GEMINI_API_KEY` | Yes | Google Gemini API key for OCR |
+| `VITE_GEMINI_API_KEY` | Yes | Google Gemini API key for OCR |
 
 *Store the key in Netlify, not `.env.local` or source control.*
 
 ## Troubleshooting
 
-### "OCR failed. Ensure GEMINI_API_KEY is configured"
+### "OCR failed. Ensure VITE_GEMINI_API_KEY is configured"
 
 - Double-check the key is set in Netlify environment variables.
 - Redeploy after adding or updating the key.

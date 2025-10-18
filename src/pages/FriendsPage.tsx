@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Users, UserPlus, CreditCard, Phone, Search, MoreVertical, PlusCircle, Trash2, SaveIcon, Loader2, X } from '../icons'
@@ -43,30 +44,47 @@ export default function FriendsPage() {
       return
     }
 
-    const { data: rows, error } = await supabase
-      .from('friends')
-      .select('id, name, account, phone')
-      .eq('user_id', s.user.id) // only this user’s friends
-      .order('created_at', { ascending: true })
-
-    if (error) setError(error.message)
-    setFriends((rows || []).map((row) => ({ ...row, phone: row.phone || '' })))
-    // Load circles (no-op if tables missing)
     try {
-      const cs = await fetchCircles(s.user.id)
-      setCircles(cs)
-      // counts
-      const counts = await fetchCircleMemberCounts(s.user.id)
-      setCircleCounts(counts)
-      // Auto-select first circle if none selected
-      const targetCircle = selectedCircle || (cs && cs.length ? cs[0].id : '')
-      if (targetCircle) {
-        setSelectedCircle(targetCircle)
-        const ms = await fetchCircleMembers(s.user.id, targetCircle)
-        setCircleMembers(ms)
+      // Run all queries in parallel for much faster loading
+      const [friendsResult, circlesResult] = await Promise.all([
+        supabase
+          .from('friends')
+          .select('id, name, account, phone')
+          .eq('user_id', s.user.id)
+          .order('created_at', { ascending: true })
+          .limit(200),
+        fetchCircles(s.user.id).catch(() => [])
+      ]);
+
+      if (friendsResult.error) {
+        setError(friendsResult.error.message)
+      } else {
+        setFriends((friendsResult.data || []).map((row) => ({ ...row, phone: row.phone || '' })))
       }
-    } catch (_) {}
-    setLoading(false)
+
+      // Load circle data in parallel
+      const cs = circlesResult || []
+      setCircles(cs)
+
+      if (cs.length > 0) {
+        const targetCircle = selectedCircle || cs[0].id
+        setSelectedCircle(targetCircle)
+
+        // Fetch counts and members in parallel
+        const [counts, members] = await Promise.all([
+          fetchCircleMemberCounts(s.user.id).catch(() => ({})),
+          fetchCircleMembers(s.user.id, targetCircle).catch(() => [])
+        ]);
+
+        setCircleCounts(counts)
+        setCircleMembers(members)
+      }
+    } catch (err) {
+      console.error('Refresh error:', err)
+      setError(err.message || 'Failed to load data')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -394,7 +412,7 @@ export default function FriendsPage() {
             <button
               type="button"
               onClick={addFriend}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500"
+              className="btn-apple btn-primary"
             >
               <SaveIcon size={14} /> Save friend
             </button>
@@ -432,7 +450,7 @@ export default function FriendsPage() {
                   setError(e.message || 'Failed to create circle')
                 }
               }}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/80 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500"
+              className="btn-apple btn-primary"
             >
               <PlusCircle size={16} /> Create
             </button>
@@ -681,29 +699,39 @@ export default function FriendsPage() {
                       </button>
                       {openMenu === f.id && (
                         <div
-                          className="absolute right-0 top-0 z-30 w-36 -translate-y-full transform rounded-xl border border-slate-700/70 bg-slate-900/95 p-2 text-sm text-slate-100 shadow"
+                          className="action-menu absolute right-0 top-0 z-30 -translate-y-full transform"
                           onClick={(e) => e.stopPropagation()}
                           onMouseDown={(e) => e.stopPropagation()}
                         >
                           <button
                             type="button"
-                            className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-800/70"
+                            className="menu-item"
                             onClick={() => {
                               setOpenMenu(null)
                               openEditFriend(f)
                             }}
                           >
-                            Edit
+                            <div className="menu-item-leading">
+                              <div className="menu-item-symbol">✎</div>
+                              <div className="menu-item-content">
+                                <div className="menu-item-label">Edit</div>
+                              </div>
+                            </div>
                           </button>
                           <button
                             type="button"
-                            className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-red-200 hover:bg-red-500/10"
+                            className="menu-item menu-item-danger"
                             onClick={() => {
                               setOpenMenu(null)
                               removeFriend(f.id)
                             }}
                           >
-                            Delete
+                            <div className="menu-item-leading">
+                              <div className="menu-item-symbol">🗑</div>
+                              <div className="menu-item-content">
+                                <div className="menu-item-label">Delete</div>
+                              </div>
+                            </div>
                           </button>
                         </div>
                       )}

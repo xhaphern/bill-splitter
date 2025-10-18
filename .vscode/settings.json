@@ -1,3 +1,5 @@
 {
-    "chatgpt.openOnStartup": true
+    "chatgpt.openOnStartup": true,
+    "terminal.integrated.accessibleViewFocusOnCommandExecution": false,
+    "powershell.developer.setExecutionPolicy": false
 }

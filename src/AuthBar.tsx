@@ -1,9 +1,14 @@
-// src/AuthBar.jsx
 import { Link, useLocation } from "react-router-dom";
+import type { Session } from "@supabase/supabase-js";
 import { LogIn, LogOut, UserCircle } from "./icons";
 import { supabase } from "./supabaseClient";
 
-export default function AuthBar({ session, variant = "header" }) {
+interface AuthBarProps {
+  session: Session | null;
+  variant?: "header" | "menu";
+}
+
+export default function AuthBar({ session, variant = "header" }: AuthBarProps): JSX.Element {
   const location = useLocation();
 
   const displayName =
@@ -21,7 +26,7 @@ export default function AuthBar({ session, variant = "header" }) {
       ? "inline-flex items-center justify-center gap-2 w-full rounded-2xl border border-emerald-500/70 bg-emerald-950/70 px-4 py-2 text-sm font-semibold text-emerald-100 shadow transition-all duration-200 ease-out hover:bg-emerald-900/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
       : "inline-flex items-center gap-2 rounded-2xl border border-emerald-500/70 bg-emerald-950/70 px-3 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition-all duration-200 ease-out hover:bg-emerald-900/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60";
 
-  const signOut = async () => {
+  const signOut = async (): Promise<void> => {
     await supabase.auth.signOut();
   };
 

@@ -25,8 +25,11 @@ function parseImagePayload(image) {
 
   if (typeof image !== "string") return null;
 
-  if (image.startsWith("data:")) {
-    const match = image.match(/^data:([^;]+);base64,(.+)$/);
+  const trimmed = image.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("data:")) {
+    const match = trimmed.match(/^data:([^;]+);base64,(.+)$/);
     if (!match) return null;
     return {
       base64: match[2],
@@ -35,14 +38,14 @@ function parseImagePayload(image) {
   }
 
   return {
-    base64: image,
+    base64: trimmed,
     mimeType: "image/jpeg",
   };
 }
 
 async function scanWithGemini(imagePayload) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+  const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("VITE_GEMINI_API_KEY not configured");
 
   const { base64, mimeType } = imagePayload || {};
   if (!base64) throw new Error("Missing base64 image data");
@@ -141,10 +144,32 @@ async function scanWithGemini(imagePayload) {
 }
 
 export const handler = async (event) => {
+  const origin = event.headers?.origin;
+  const allowOrigin = origin || "*";
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": event.headers?.["access-control-request-headers"] || "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  if (origin) {
+    corsHeaders["Access-Control-Allow-Credentials"] = "true";
+  }
+
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 204,
+      headers: {
+        ...corsHeaders,
+        "Content-Length": "0",
+      },
+      body: "",
+    };
+  }
+
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
       body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
@@ -156,33 +181,33 @@ export const handler = async (event) => {
     const { image } = JSON.parse(body || "{}");
     const parsedImage = parseImagePayload(image);
 
-  if (!parsedImage) {
-    return {
-      statusCode: 400,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Invalid image payload" }),
-    };
-  }
+    if (!parsedImage) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Invalid image payload" }),
+      };
+    }
 
     const result = await scanWithGemini(parsedImage);
 
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
       body: JSON.stringify({
         items: result.items,
         summary: result.summary || {},
         rawText: result.rawText,
-        provider: "gemini",
+        provider: "vision",
       }),
     };
   } catch (error) {
-    console.error("Gemini OCR failed", error);
+    console.error("OCR service failed", error);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
       body: JSON.stringify({
-        error: "OCR failed. Ensure GEMINI_API_KEY is configured in Netlify environment variables.",
+        error: "OCR failed. Ensure VITE_GEMINI_API_KEY is configured in Netlify environment variables.",
       }),
     };
   }

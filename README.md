@@ -14,7 +14,7 @@ Bill Splitter is a Vite + React single-page app for tracking shared expenses, sa
 ## Tech Stack
 
 - React 18 + Vite 7
-- Tailwind CSS 3
+- Tailwind CSS 3 with shadcn/ui primitives (Radix + lucide-react)
 - Supabase JS client (Auth, PostgREST)
 - Bun 1 (dependency manager, scripts, tests)
 
@@ -29,7 +29,7 @@ Bill Splitter is a Vite + React single-page app for tracking shared expenses, sa
 
 Create `.env.local` in the repo root (never commit secrets):
 
-```
+```dotenv
 VITE_SUPABASE_URL=your-supabase-url
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 # Optional explicit redirect for Supabase OAuth in production.
@@ -43,7 +43,7 @@ Ensure the redirect URL is also added to Supabase Auth settings.
 
 For AI-powered receipt scanning, add this to Netlify environment variables:
 
-- `GEMINI_API_KEY` - Google Gemini API (free tier available)
+- `VITE_GEMINI_API_KEY` - Google Gemini API (free tier available)
 
 See [OCR_SETUP.md](OCR_SETUP.md) for detailed instructions.
 
@@ -54,7 +54,19 @@ bun install
 bun run dev
 ```
 
-The app runs at http://localhost:5173. Sign in using Supabase Auth to exercise persistence, or continue anonymously to test local-only flows.
+The app runs at <http://localhost:5173>. Sign in using Supabase Auth to exercise persistence, or continue anonymously to test local-only flows.
+
+### UI Components (shadcn/ui)
+
+The design system is powered by [shadcn/ui](https://ui.shadcn.com/) with an emerald-accent palette.  
+To add or refresh components:
+
+```bash
+npx shadcn@latest add <component> --path src/components/ui
+```
+
+Common primitives already generated: `button`, `card`, `input`, `sheet`. Re-run with `--overwrite` to pull upstream updates.  
+Colors are controlled via CSS variables in `src/index.css`; keep the emerald values if you tweak the theme.
 
 ### Linting & Tests
 
@@ -89,7 +101,7 @@ A workflow in `.github/workflows/deploy.yml` builds with Bun and publishes to th
 
 ## Project Structure
 
-```
+```text
 src/
   App.jsx            // Routing + layout
   BillSplitter.jsx   // Core bill management UI

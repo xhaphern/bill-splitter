@@ -63,3 +63,33 @@ docs_gpt5_codex_prompt.md
 
 # Local Netlify folder
 .netlify
+
+# OS files
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Lock files (if using multiple package managers)
+# Uncomment if you want to ignore specific lock files
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Test coverage
+*.lcov
+.nyc_output
+
+# TypeScript
+*.tsbuildinfo
+
+# Debug
+.vscode/chrome
+.vscode/.react
+
+# Claude Code temp files
+/temp/
+
+# Screenshots and temporary images
+screenshots/
+*.screenshot.png

@@ -11,6 +11,7 @@ export {
   // General UI
   Search,
   Receipt,
+  Home,
   Clock3,
   ChevronRight,
   ChevronDown,
@@ -36,6 +37,8 @@ export {
   FileText,
   Calendar,
   Trash2,
+  ScanText,
 } from "lucide-react";
 export { Loader2 } from "lucide-react";
 export { Github } from "lucide-react";
+export { Google } from "./icons/Google";
