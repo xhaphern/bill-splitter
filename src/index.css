@@ -10,8 +10,33 @@
    knows @apply belongs to Tailwind.
    ────────────────────────────────────────────────────────────── */
 @layer base {
+  :root {
+    --background: 219 64% 7%;
+    --foreground: 210 40% 96%;
+    --card: 222 58% 11%;
+    --card-foreground: 210 40% 96%;
+    --surface: 210 100% 97%;
+    --surface-muted: 214 70% 86%;
+    --border: 206 42% 32%;
+    --input: 209 48% 18%;
+    --ring: 152 76% 47%;
+    --primary: 152 76% 47%;
+    --primary-foreground: 210 40% 96%;
+    --secondary: 222 52% 20%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 218 28% 22%;
+    --muted-foreground: 215 20% 70%;
+    --accent: 201 82% 45%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --popover: 220 58% 10%;
+    --popover-foreground: 210 40% 96%;
+    --radius: 1rem;
+  }
+
   html, body {
-    @apply bg-slate-900 text-slate-100 antialiased;
+    @apply bg-background text-foreground antialiased;
     font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
@@ -44,9 +69,9 @@
 
   /* Card container w/ soft border + blur hint (used on panels) */
   .card-neo {
-    @apply rounded-xl border border-white/10 bg-gray-900/60
-           shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_10px_30px_-10px_rgba(0,0,0,0.7)]
-           backdrop-blur;
+    @apply rounded-2xl border border-white/10 bg-white/10
+           shadow-[0_30px_60px_-25px_rgba(15,23,42,0.6),0_18px_40px_-20px_rgba(15,23,42,0.35)]
+           backdrop-blur-xl;
   }
 
   /* Inputs with subtle neon edge */
@@ -87,6 +112,26 @@
     @apply text-gray-400;
   }
 
+  .glass-panel {
+    @apply rounded-3xl border border-white/10 backdrop-blur-2xl;
+    background: linear-gradient(145deg, rgba(6, 18, 32, 0.9), rgba(4, 12, 24, 0.78));
+    box-shadow: 0 28px 60px -28px rgba(3, 10, 20, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-panel-muted {
+    @apply rounded-3xl border border-white/10 backdrop-blur-2xl;
+    background: linear-gradient(150deg, rgba(8, 20, 36, 0.74), rgba(5, 14, 26, 0.64));
+    box-shadow: 0 22px 55px -30px rgba(3, 10, 20, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .glass-divider {
+    @apply h-px w-full bg-gradient-to-r from-white/0 via-white/30 to-white/0;
+  }
+
+  .glass-input {
+    @apply w-full rounded-2xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-400 transition focus:border-emerald-300/60 focus:outline-none focus:ring-2 focus:ring-emerald-400/40;
+  }
+
   /* Narrow amount column (fits up to 100,000.00) */
   .amount-narrow {
     @apply w-[9.5rem] text-right;
@@ -100,5 +145,26 @@
   /* Neon divider line */
   .divider-neo {
     @apply h-px w-full bg-gradient-to-r from-transparent via-emerald-400/30 to-transparent;
+  }
+
+  .animate-shimmer-scan {
+    animation: shimmer-scan 1.8s linear infinite;
+    background-size: 200% 100%;
+  }
+
+  .backdrop-blur-28 { backdrop-filter: blur(28px); }
+  .backdrop-blur-30 { backdrop-filter: blur(30px); }
+  .backdrop-blur-32 { backdrop-filter: blur(32px); }
+  .backdrop-blur-34 { backdrop-filter: blur(34px); }
+  .backdrop-blur-36 { backdrop-filter: blur(36px); }
+  .backdrop-blur-38 { backdrop-filter: blur(38px); }
+}
+
+@keyframes shimmer-scan {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
   }
 }
