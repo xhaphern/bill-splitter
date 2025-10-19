@@ -19,22 +19,22 @@ export async function saveBill({
     error: userError,
   } = await supabase.auth.getUser();
   if (userError) throw userError;
+  if (!user) throw new Error("Must be signed in to save a bill.");
 
   const insertPayload = {
-    user_id: user?.id ?? null,
+    user_id: user.id,
     title,
     currency,
     payload,
   };
 
-  const { data, error } = await (supabase as any).from("bills").insert([insertPayload]).select();
+  const { data, error } = await supabase
+    .from("bills")
+    .insert(insertPayload)
+    .select()
+    .single();
   if (error) throw error;
-
-  const row = data?.[0];
-  if (!row) {
-    throw new Error("Supabase returned no bill row after insert.");
-  }
-  return row as unknown as BillRow;
+  return data as BillRow;
 }
 
 export async function listBills(): Promise<BillRow[]> {
@@ -45,20 +45,28 @@ export async function listBills(): Promise<BillRow[]> {
   if (userError) throw userError;
   if (!user) return [];
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("bills")
     .select("id,title,currency,total,created_at,payload")
-    .eq("user_id", user.id!)
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data ?? []) as unknown as BillRow[];
+  return (data ?? []) as BillRow[];
 }
 
 export async function deleteBill(id: string): Promise<void> {
-  const { error } = await (supabase as any)
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Must be signed in to delete a bill.");
+
+  const { error } = await supabase
     .from("bills")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", user.id);
   if (error) throw error;
 }

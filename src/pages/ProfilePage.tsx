@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, getRedirectUrl } from "../supabaseClient";
-import { Github, LogOut, UserCircle, Google, Receipt } from "../icons";
+import { Github, LogOut, UserCircle, Google, Receipt, SaveIcon } from "../icons";
 
 interface LocationState {
   from?: string;
@@ -121,7 +121,7 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
             after authentication.
           </div>
         )}
-        <div className="glass-panel w-full max-w-md p-7 text-center">
+        <div className="glass-panel w-full max-w-md card-padding text-center">
           <h2 className="mb-4 flex flex-wrap items-center justify-center gap-3 text-2xl font-semibold text-white">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-900/30">
               <Receipt size={18} className="text-emerald-300" />
@@ -160,7 +160,7 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
   const { user } = session;
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-5xl page-container space-y-6">
       <header className="mb-4">
         <h2 className="flex flex-wrap items-center gap-3 text-xl font-semibold text-white">
           <UserCircle size={20} className="text-emerald-300" />
@@ -170,7 +170,7 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
           </span>
         </h2>
       </header>
-      <div className="glass-panel space-y-5 p-6">
+      <div className="glass-panel space-y-5 card-padding">
         <div className="space-y-1">
           <div className="text-sm font-semibold text-slate-200">Signed in as</div>
           <div className="text-lg text-white">{user.email}</div>
@@ -204,6 +204,7 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
             onClick={handleSaveProfile}
             className="btn-apple btn-primary w-full"
           >
+            <SaveIcon size={18} />
             Save profile
           </button>
         </div>

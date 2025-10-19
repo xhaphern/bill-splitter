@@ -18,6 +18,24 @@
   --tab-text-inactive: rgba(255, 255, 255, 0.65);
   --tab-text-active: var(--accent-color);
   --tab-selection-bg: rgba(255, 255, 255, 0.15);
+
+  /* iOS Padding Standards - 8px baseline grid */
+  --spacing-tight: 8px;          /* Tight: labels, form fields */
+  --spacing-medium: 12px;        /* Medium: icons + text, button groups */
+  --spacing-comfortable: 16px;   /* Comfortable: sections, paragraphs */
+  --spacing-screen: 16px;        /* Screen horizontal margins (compact) */
+  --spacing-screen-lg: 20px;     /* Screen horizontal margins (comfortable/large) */
+
+  /* iOS Button Padding */
+  --btn-padding-y: 12px;         /* Button vertical: 8-16px range */
+  --btn-padding-x: 16px;         /* Button horizontal: 14-24px range */
+
+  /* iOS Touch Targets */
+  --tap-target-min: 44px;        /* Minimum tap target size */
+
+  /* Safe Areas */
+  --safe-area-top: 50px;         /* Top bar height */
+  --safe-area-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); /* Tab bar + safe area */
 }
 
 @media (prefers-color-scheme: light) {
@@ -838,3 +856,56 @@ select option:checked {
 select option:disabled {
   color: rgba(255, 255, 255, 0.4);
 }
+
+/* ========================================
+   iOS Padding & Spacing Utilities
+   ======================================== */
+
+/* Page Container - iOS Standards */
+.page-container {
+  padding-left: var(--spacing-screen);
+  padding-right: var(--spacing-screen);
+  padding-bottom: var(--safe-area-bottom);
+}
+
+@media (min-width: 640px) {
+  .page-container {
+    padding-left: var(--spacing-screen-lg);
+    padding-right: var(--spacing-screen-lg);
+  }
+}
+
+/* Section Spacing */
+.section-spacing {
+  margin-bottom: var(--spacing-comfortable);
+}
+
+.section-padding {
+  padding: var(--spacing-comfortable);
+}
+
+/* Card Padding - iOS style */
+.card-padding {
+  padding: var(--spacing-comfortable);
+}
+
+/* Button Groups */
+.btn-group {
+  gap: var(--spacing-medium);
+}
+
+/* Form Field Spacing */
+.field-spacing {
+  margin-bottom: var(--spacing-tight);
+}
+
+/* Touch Target Minimum */
+.tap-target {
+  min-height: var(--tap-target-min);
+  min-width: var(--tap-target-min);
+}
+
+/* Vertical Rhythm */
+.v-tight { margin-bottom: var(--spacing-tight); }
+.v-medium { margin-bottom: var(--spacing-medium); }
+.v-comfortable { margin-bottom: var(--spacing-comfortable); }

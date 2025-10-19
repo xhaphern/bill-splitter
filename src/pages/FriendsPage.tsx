@@ -338,17 +338,17 @@ export default function FriendsPage() {
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-5xl p-6">
-        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-6 text-center shadow-xl backdrop-blur">
+      <div className="mx-auto max-w-5xl page-container">
+        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding text-center shadow-xl backdrop-blur">
           <h1 className="mb-2 text-2xl font-semibold text-white">Friends</h1>
           <p className="mb-6 text-sm text-emerald-200/70">
-            Sign in to build your circles and keep favourite payers handy.
+            Sign in to save your friends and organize them into circles for quick access when splitting bills.
           </p>
           <Link
             to="/login"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/80 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500"
+            className="btn-apple btn-primary"
           >
-            Sign in
+            Sign in to manage friends
           </Link>
         </div>
       </div>
@@ -356,9 +356,9 @@ export default function FriendsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-6 space-y-6 text-slate-100">
+    <div className="mx-auto max-w-5xl page-container space-y-6 text-slate-100">
       {/* Add a friend (moved to top) */}
-      <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
+      <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
         <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-emerald-200">
           <UserPlus size={18} className="text-emerald-300" /> Add a friend
         </div>
@@ -421,7 +421,7 @@ export default function FriendsPage() {
       </div>
 
       {/* Circles manager */}
-      <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
+      <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
@@ -633,7 +633,7 @@ export default function FriendsPage() {
         </div>
       </div>
       {/* Friends header + search */}
-      <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
+      <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="flex items-center gap-2 text-xl font-semibold text-white">
