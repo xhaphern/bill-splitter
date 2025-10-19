@@ -37,6 +37,7 @@ const fmt = (n) => (Number(n) || 0).toFixed(2);
 const EMPTY_SCAN_SUMMARY = {
   subtotal: null,
   serviceChargeAmount: null,
+  serviceChargePercent: null,
   total: null,
   currency: null,
 };
@@ -586,6 +587,7 @@ function notify(msg, kind = 'success') {
       serviceChargeAmount: parseNumber(
         summary.serviceChargeAmount ?? summary.serviceCharge
       ),
+      serviceChargePercent: parseNumber(summary.serviceChargePercent),
       total: parseNumber(summary.total),
       currency:
         typeof summary.currency === "string" && summary.currency.trim()
@@ -735,7 +737,13 @@ function notify(msg, kind = 'success') {
         : newItemsSubtotal;
       let serviceChargePct = prev.serviceCharge;
 
-      if (Number.isFinite(summaryForCommit.serviceChargeAmount) && baseSubtotal > 0) {
+      // Prioritize service charge percentage from OCR if available
+      if (Number.isFinite(summaryForCommit.serviceChargePercent) && summaryForCommit.serviceChargePercent >= 0) {
+        serviceChargePct = summaryForCommit.serviceChargePercent;
+        appliedServiceChargePct = serviceChargePct;
+      }
+      // Otherwise calculate from service charge amount if available
+      else if (Number.isFinite(summaryForCommit.serviceChargeAmount) && baseSubtotal > 0) {
         const derived = (summaryForCommit.serviceChargeAmount / baseSubtotal) * 100;
         if (Number.isFinite(derived) && derived >= 0) {
           serviceChargePct = Number(derived.toFixed(2));
@@ -1141,7 +1149,7 @@ function notify(msg, kind = 'success') {
 
         {/* Top controls */}
         <div className="mb-4">
-          <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur">
+          <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto lg:justify-end">
                 <ActionButton
@@ -1161,12 +1169,6 @@ function notify(msg, kind = 'success') {
                     });
                     notify("New bill started");
                   }}
-                />
-                <ActionButton
-                  icon={<ScanText size={18} />}
-                  label="Scan receipt"
-                  tone="cyan"
-                  onClick={openScanFlow}
                 />
                 <ActionButton
                   icon={<SaveIcon size={18} />}
@@ -1196,7 +1198,7 @@ function notify(msg, kind = 'success') {
           <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,2fr),minmax(0,1fr)] lg:items-start lg:gap-4">
             <div className="space-y-4">
             {/* Participants */}
-            <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur">
+            <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-200/80">
                   <Users size={16} className="text-emerald-300" />
@@ -1868,7 +1870,7 @@ function notify(msg, kind = 'success') {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur">
+              <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-200/80">
                     <Calculator size={16} className="text-green-400" />
@@ -1940,8 +1942,8 @@ function notify(msg, kind = 'success') {
 
       {/* OCR Review modal */}
       {showOcrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl border border-slate-700/70 bg-slate-900/85 p-6 shadow-xl backdrop-blur">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 pb-24">
+          <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-3xl border border-slate-700/70 bg-slate-900/85 p-6 pb-8 shadow-xl backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-white text-lg font-semibold">Review scanned items</h3>
@@ -2031,7 +2033,7 @@ function notify(msg, kind = 'success') {
               <button
                 type="button"
                 onClick={discardScannedItems}
-                className="btn-apple btn-secondary"
+                className="btn-apple btn-destructive"
               >
                 Discard
               </button>
@@ -2188,14 +2190,6 @@ function notify(msg, kind = 'success') {
         />
       )}
 
-      {/* Floating Add Item button (mobile) */}
-      <button
-        onClick={openAddItem}
-        className="sm:hidden fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/20 text-emerald-100 shadow-xl backdrop-blur-xl transition hover:bg-emerald-500/30"
-        aria-label="Add Item"
-      >
-        <Plus />
-      </button>
       {/* Toast */}
       {toast && (
         <div className={`fixed bottom-5 right-5 z-[60] rounded-xl border px-4 py-3 shadow-lg backdrop-blur-sm

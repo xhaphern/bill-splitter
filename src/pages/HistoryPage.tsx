@@ -96,8 +96,8 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-6 space-y-6 text-slate-100">
-      <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
+    <div className="mx-auto max-w-5xl page-container space-y-6 text-slate-100">
+      <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="flex items-center gap-2 text-xl font-semibold text-white">

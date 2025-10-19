@@ -85,20 +85,20 @@ export default function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-[#05070b] via-[#0b111a] to-[#05070b] text-slate-100">
-        <header className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+        <header className="mx-auto flex max-w-7xl items-center justify-between page-container" style={{paddingTop: '12px', paddingBottom: '12px'}}>
           <div className="text-lg font-semibold tracking-wide text-white">
             Bill Splitter
           </div>
         </header>
 
         {initializing ? (
-          <main className="mx-auto max-w-7xl px-4 pb-10">
+          <main className="mx-auto max-w-7xl page-container">
             <div className="min-h-[40vh] grid place-items-center text-slate-300">
               Loading…
             </div>
           </main>
         ) : (
-          <main className="mx-auto max-w-7xl px-4 pb-10">
+          <main className="mx-auto max-w-7xl page-container">
             <Suspense
               fallback={
                 <div className="min-h-[40vh] grid place-items-center text-slate-300">
