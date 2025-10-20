@@ -293,9 +293,6 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         };
 
         onParse?.({ items: parsedItems, rawText, summary: mergedSummary });
-        setStage("Preparing review");
-        setProgress((prev) => Math.max(prev, 0.95));
-        setStatus("Preparing review");
         setProgress(1);
         setStage("Scan complete");
         return true;
@@ -316,9 +313,12 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         abortControllerRef.current?.abort();
         abortControllerRef.current = null;
         setControllerActive(false);
+        // Reset all progress state after a brief delay to allow modal transition
         setTimeout(() => {
           setStatus("");
-        }, 900);
+          setStage("");
+          setProgress(0);
+        }, 500);
       }
     };
 

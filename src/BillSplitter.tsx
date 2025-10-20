@@ -38,6 +38,9 @@ const EMPTY_SCAN_SUMMARY = {
   subtotal: null,
   serviceChargeAmount: null,
   serviceChargePercent: null,
+  discount1Percent: null,
+  discount2Percent: null,
+  gstPercent: null,
   total: null,
   currency: null,
 };
@@ -588,6 +591,9 @@ function notify(msg, kind = 'success') {
         summary.serviceChargeAmount ?? summary.serviceCharge
       ),
       serviceChargePercent: parseNumber(summary.serviceChargePercent),
+      discount1Percent: parseNumber(summary.discount1Percent),
+      discount2Percent: parseNumber(summary.discount2Percent),
+      gstPercent: parseNumber(summary.gstPercent ?? summary.gst),
       total: parseNumber(summary.total),
       currency:
         typeof summary.currency === "string" && summary.currency.trim()
@@ -729,6 +735,9 @@ function notify(msg, kind = 'success') {
 
     let comparison = null;
     let appliedServiceChargePct = null;
+    let appliedDiscount1 = null;
+    let appliedDiscount2 = null;
+    let appliedGst = null;
 
     setBill((prev) => {
       const updatedItems = [...prev.items, ...normalized];
@@ -736,6 +745,15 @@ function notify(msg, kind = 'success') {
         ? summaryForCommit.subtotal
         : newItemsSubtotal;
       let serviceChargePct = prev.serviceCharge;
+      let discount1Pct = prev.discount1;
+      let discount2Pct = prev.discount2;
+      let gstPct = prev.gst;
+
+      // Apply discount1 from OCR if available
+      if (Number.isFinite(summaryForCommit.discount1Percent) && summaryForCommit.discount1Percent >= 0) {
+        discount1Pct = summaryForCommit.discount1Percent;
+        appliedDiscount1 = discount1Pct;
+      }
 
       // Prioritize service charge percentage from OCR if available
       if (Number.isFinite(summaryForCommit.serviceChargePercent) && summaryForCommit.serviceChargePercent >= 0) {
@@ -751,11 +769,23 @@ function notify(msg, kind = 'success') {
         }
       }
 
+      // Apply discount2 from OCR if available
+      if (Number.isFinite(summaryForCommit.discount2Percent) && summaryForCommit.discount2Percent >= 0) {
+        discount2Pct = summaryForCommit.discount2Percent;
+        appliedDiscount2 = discount2Pct;
+      }
+
+      // Apply GST from OCR if available
+      if (Number.isFinite(summaryForCommit.gstPercent) && summaryForCommit.gstPercent >= 0) {
+        gstPct = summaryForCommit.gstPercent;
+        appliedGst = gstPct;
+      }
+
       const totals = computeTotalsForItems(updatedItems, {
-        discount1: prev.discount1,
+        discount1: discount1Pct,
         serviceCharge: serviceChargePct,
-        discount2: prev.discount2,
-        gst: prev.gst,
+        discount2: discount2Pct,
+        gst: gstPct,
       });
 
       comparison = { totals, summary: summaryForCommit };
@@ -763,14 +793,22 @@ function notify(msg, kind = 'success') {
       return {
         ...prev,
         items: updatedItems,
+        discount1: discount1Pct,
         serviceCharge: serviceChargePct,
+        discount2: discount2Pct,
+        gst: gstPct,
       };
     });
 
     const currencyCode = summaryForCommit.currency || bill.currency || 'MVR';
     let successMessage = `Added ${normalized.length} scanned ${normalized.length === 1 ? "item" : "items"}.`;
-    if (appliedServiceChargePct !== null) {
-      successMessage += ` • Service charge set to ${appliedServiceChargePct.toFixed(2)}%`;
+    const appliedSettings = [];
+    if (appliedDiscount1 !== null) appliedSettings.push(`Discount 1: ${appliedDiscount1.toFixed(2)}%`);
+    if (appliedServiceChargePct !== null) appliedSettings.push(`Service charge: ${appliedServiceChargePct.toFixed(2)}%`);
+    if (appliedDiscount2 !== null) appliedSettings.push(`Discount 2: ${appliedDiscount2.toFixed(2)}%`);
+    if (appliedGst !== null) appliedSettings.push(`GST: ${appliedGst.toFixed(2)}%`);
+    if (appliedSettings.length > 0) {
+      successMessage += ` • ${appliedSettings.join(' • ')}`;
     }
 
     let warningMessage = null;
