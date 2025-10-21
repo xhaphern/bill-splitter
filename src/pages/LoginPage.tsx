@@ -6,6 +6,7 @@ import { Receipt, LogOut, Github, Google } from "../icons";
 
 interface LocationState {
   from?: string;
+  message?: string;
 }
 
 export default function LoginPage(): JSX.Element {
@@ -16,6 +17,7 @@ export default function LoginPage(): JSX.Element {
   const state = location.state as LocationState | null;
   // If a route sent us here, go back there after login; otherwise default to /split
   const from = state?.from ?? "/split";
+  const message = state?.message ?? "Sign in to save your bills and view your history.";
 
   useEffect(() => {
     // Get current session
@@ -87,7 +89,7 @@ export default function LoginPage(): JSX.Element {
               <h1 className="text-2xl font-semibold text-white">Sign in</h1>
             </div>
             <p className="mb-6 text-slate-300">
-              Sign in to save your bills and view your history.
+              {message}
             </p>
             <div className="flex items-center justify-center gap-6 my-6">
               <button
