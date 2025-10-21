@@ -266,10 +266,12 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
     const animateProgressTo = (targetProgress: number, duration = 500) => {
       if (progressAnimationRef.current) {
         clearInterval(progressAnimationRef.current);
+        progressAnimationRef.current = null;
       }
 
       setProgress((currentProgress) => {
         if (currentProgress >= targetProgress) {
+          progressAnimationRef.current = null;
           return targetProgress;
         }
 
@@ -279,6 +281,7 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
             const next = prev + increment;
             if (next >= targetProgress) {
               clearInterval(intervalId);
+              progressAnimationRef.current = null;
               return targetProgress;
             }
             return next;

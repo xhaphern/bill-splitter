@@ -558,10 +558,13 @@ export default function BillSplitter({ session }: { session: any }) {
 
   // ---- Toast (nice popup) ----
 const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'warning' | 'error' } | null>(null);
+const notifyTimeoutRef = useRef<number | null>(null);
 function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') {
   setToast({ msg, kind });
-  window.clearTimeout(notify._t);
-  notify._t = window.setTimeout(() => setToast(null), 2600);
+  if (notifyTimeoutRef.current !== null) {
+    window.clearTimeout(notifyTimeoutRef.current);
+  }
+  notifyTimeoutRef.current = window.setTimeout(() => setToast(null), 2600);
 }
 
   const [showOcrModal, setShowOcrModal] = useState(false);

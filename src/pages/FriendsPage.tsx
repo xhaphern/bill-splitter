@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Users, UserPlus, CreditCard, Phone, Search, MoreVertical, PlusCircle, Trash2, SaveIcon, Loader2, X } from '../icons'

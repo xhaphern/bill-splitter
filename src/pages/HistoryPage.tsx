@@ -1,4 +1,3 @@
-// @ts-nocheck
 // src/pages/HistoryPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
