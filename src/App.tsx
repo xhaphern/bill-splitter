@@ -22,10 +22,11 @@ interface PrivateRouteProps {
   session: Session | null;
   children: JSX.Element;
   from?: string;
+  loginMessage?: string;
 }
 
-function PrivateRoute({ session, children, from = "/split" }: PrivateRouteProps) {
-  if (!session) return <Navigate to="/login" replace state={{ from }} />;
+function PrivateRoute({ session, children, from = "/split", loginMessage }: PrivateRouteProps) {
+  if (!session) return <Navigate to="/login" replace state={{ from, message: loginMessage }} />;
   return children;
 }
 
@@ -85,20 +86,20 @@ export default function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-[#05070b] via-[#0b111a] to-[#05070b] text-slate-100">
-        <header className="mx-auto flex max-w-7xl items-center justify-between page-container" style={{paddingTop: '12px', paddingBottom: '12px'}}>
+        <header className="mx-auto flex max-w-5xl items-center justify-between page-container" style={{paddingTop: '12px', paddingBottom: '12px'}}>
           <div className="text-lg font-semibold tracking-wide text-white">
             Bill Splitter
           </div>
         </header>
 
         {initializing ? (
-          <main className="mx-auto max-w-7xl page-container">
+          <main className="mx-auto max-w-5xl page-container">
             <div className="min-h-[40vh] grid place-items-center text-slate-300">
               Loading…
             </div>
           </main>
         ) : (
-          <main className="mx-auto max-w-7xl page-container">
+          <main className="mx-auto max-w-5xl page-container">
             <Suspense
               fallback={
                 <div className="min-h-[40vh] grid place-items-center text-slate-300">
@@ -116,7 +117,11 @@ export default function App() {
                 <Route
                   path="/history"
                   element={
-                    <PrivateRoute session={session} from="/history">
+                    <PrivateRoute
+                      session={session}
+                      from="/history"
+                      loginMessage="Sign in to view your bill history and saved bills."
+                    >
                       <HistoryPage session={session} />
                     </PrivateRoute>
                   }
@@ -124,7 +129,11 @@ export default function App() {
                 <Route
                   path="/history/:id"
                   element={
-                    <PrivateRoute session={session} from="/history">
+                    <PrivateRoute
+                      session={session}
+                      from="/history"
+                      loginMessage="Sign in to view your bill history and saved bills."
+                    >
                       <BillDetailPage />
                     </PrivateRoute>
                   }
@@ -132,7 +141,11 @@ export default function App() {
                 <Route
                   path="/friends"
                   element={
-                    <PrivateRoute session={session} from="/friends">
+                    <PrivateRoute
+                      session={session}
+                      from="/friends"
+                      loginMessage="Sign in to save your friends and organize them into circles for quick access when splitting bills."
+                    >
                       <FriendsPage session={session} />
                     </PrivateRoute>
                   }
@@ -140,7 +153,11 @@ export default function App() {
                 <Route
                   path="/profile"
                   element={
-                    <PrivateRoute session={session} from="/profile">
+                    <PrivateRoute
+                      session={session}
+                      from="/profile"
+                      loginMessage="Sign in to view and manage your profile settings."
+                    >
                       <ProfilePage session={session} />
                     </PrivateRoute>
                   }

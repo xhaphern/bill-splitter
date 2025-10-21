@@ -146,27 +146,15 @@ export default function BillDetailPage(): JSX.Element {
     };
   }, [id]);
 
-  if (loading) return <div className="p-6 text-slate-300">Loading…</div>;
-
-  if (!row) {
-    return (
-      <div className="p-6 space-y-4 text-slate-300">
-        <div className="mb-4">Bill not found.</div>
-        <Link to="/history" className="btn-neo-ghost">
-          Back to History
-        </Link>
-      </div>
-    );
-  }
-
-  const { bill, friends = [] } = row.payload ?? {};
+  // Extract data before early returns to avoid hook order issues
+  const { bill, friends = [] } = row?.payload ?? {};
   const items = Array.isArray(bill?.items) ? bill.items ?? [] : [];
 
   const serviceChargePercent = Number(bill?.sc ?? bill?.serviceCharge ?? 0);
   const gstPercent = Number(bill?.gst ?? bill?.GST ?? 0);
 
-  const currency = row.currency || "MVR";
-  const createdAt = row.created_at ? new Date(row.created_at) : null;
+  const currency = row?.currency || "MVR";
+  const createdAt = row?.created_at ? new Date(row.created_at) : null;
   const billDate = bill?.date ? new Date(bill.date) : null;
 
   const subtotal = items.reduce((sum, it) => {
@@ -222,6 +210,19 @@ export default function BillDetailPage(): JSX.Element {
       adjustments: adjustmentList,
     };
   }, [bill, friends, items]);
+
+  if (loading) return <div className="p-6 text-slate-300">Loading…</div>;
+
+  if (!row) {
+    return (
+      <div className="p-6 space-y-4 text-slate-300">
+        <div className="mb-4">Bill not found.</div>
+        <Link to="/history" className="btn-neo-ghost">
+          Back to History
+        </Link>
+      </div>
+    );
+  }
 
   const total = Object.values(perUserTotals).reduce((acc, val) => acc + val, 0);
 

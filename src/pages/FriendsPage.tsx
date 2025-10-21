@@ -346,6 +346,7 @@ export default function FriendsPage() {
           </p>
           <Link
             to="/login"
+            state={{ from: '/friends', message: 'Sign in to save your friends and organize them into circles for quick access when splitting bills.' }}
             className="btn-apple btn-primary"
           >
             Sign in to manage friends

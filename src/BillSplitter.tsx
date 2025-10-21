@@ -1176,7 +1176,7 @@ function notify(msg, kind = 'success') {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#05080f] via-[#070c14] to-[#05080f] p-4">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         {/* Header small */}
         <div className="text-center mb-3">
           <h1 className="text-3xl font-bold text-white mb-1 flex items-center justify-center gap-3">
@@ -1186,6 +1186,7 @@ function notify(msg, kind = 'success') {
         </div>
 
         {/* Top controls */}
+        {bill.items.length > 0 && (
         <div className="mb-4">
           <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1232,6 +1233,7 @@ function notify(msg, kind = 'success') {
             </div>
           </div>
         </div>
+        )}
 
           <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,2fr),minmax(0,1fr)] lg:items-start lg:gap-4">
             <div className="space-y-4">
@@ -1501,7 +1503,7 @@ function notify(msg, kind = 'success') {
                 </div>
               </div>
 
-              <h2 className="text-lg font-semibold text-white">Itemized Split</h2>
+              {/* OCR Reader - always mounted so ref is available */}
               <OcrReader
                 ref={ocrReaderRef}
                 onParse={handleOcrItems}
@@ -1509,6 +1511,45 @@ function notify(msg, kind = 'success') {
                 onStart={() => setShowItemModal(false)}
                 compact
               />
+
+              {bill.items.length === 0 ? (
+                <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-900/20 via-slate-900/70 to-teal-900/20 card-padding shadow-xl backdrop-blur text-center">
+                  <div className="mx-auto max-w-md space-y-4">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-500/40">
+                      <Receipt size={32} className="text-emerald-300" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-white">Ready to Split a Bill?</h3>
+                    <p className="text-sm text-slate-300 leading-relaxed">
+                      Add participants above, then scan a receipt or manually add items to start splitting your bill fairly among friends.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                      <button
+                        onClick={() => setCameraOverlayOpen(true)}
+                        className="btn-apple btn-primary"
+                      >
+                        <ScanText size={18} />
+                        Scan Receipt
+                      </button>
+                      <button
+                        onClick={() => ocrReaderRef.current?.open?.()}
+                        className="btn-apple btn-secondary"
+                      >
+                        <Upload size={18} />
+                        Upload Bill
+                      </button>
+                      <button
+                        onClick={() => setShowItemModal(true)}
+                        className="btn-apple btn-secondary"
+                      >
+                        <Plus size={18} />
+                        Add Item
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+              <h2 className="text-lg font-semibold text-white">Itemized Split</h2>
 
               {/* Mobile list view */}
               <div className="sm:hidden space-y-2">
@@ -1838,10 +1879,13 @@ function notify(msg, kind = 'success') {
                   </tfoot>
                 </table>
               </div>
-              
+                </>
+              )}
+              </div>
             </div>
             </div>
 
+            {bill.items.length > 0 && (
             <div className="mt-4 space-y-4 lg:mt-0">
               <div ref={summaryRef} className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-200">Totals</h3>
@@ -1975,8 +2019,8 @@ function notify(msg, kind = 'success') {
                 )}
               </div>
             </div>
+            )}
           </div>
-      </div>
 
       {/* OCR Review modal */}
       {showOcrModal && (
