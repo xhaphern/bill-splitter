@@ -203,11 +203,20 @@ export const handler = async (event) => {
     };
   } catch (error) {
     console.error("OCR service failed", error);
+
+    // Provide more specific error messages
+    let errorMessage = "OCR failed. ";
+    if (!process.env.VITE_GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
+      errorMessage += "VITE_GEMINI_API_KEY is not configured in Netlify environment variables.";
+    } else {
+      errorMessage += error.message || "Unknown error occurred.";
+    }
+
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
       body: JSON.stringify({
-        error: "OCR failed. Ensure VITE_GEMINI_API_KEY is configured in Netlify environment variables.",
+        error: errorMessage,
       }),
     };
   }
