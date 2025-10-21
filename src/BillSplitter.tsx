@@ -112,7 +112,7 @@ function ActionButton({ icon, label, onClick, tone = "default" }: { icon: React.
   );
 }
 
-const DownloadButton = forwardRef(function DownloadButton({ onSelect, open, setOpen }, ref) {
+const DownloadButton = forwardRef<HTMLDivElement, { onSelect: (type: string) => void; open: boolean; setOpen: (value: boolean | ((prev: boolean) => boolean)) => void }>(function DownloadButton({ onSelect, open, setOpen }, ref) {
   const palette = toneMap.cyan;
   return (
     <div className="relative" ref={ref}>
@@ -154,13 +154,13 @@ const DownloadButton = forwardRef(function DownloadButton({ onSelect, open, setO
   );
 });
 
-export default function BillSplitter({ session }) {
+export default function BillSplitter({ session }: { session: any }) {
   // ---- Friends (participants for this bill) and catalog/circles ----
-  const [friends, setFriends] = useState([]); // participants for this bill
-  const [friendCatalog, setFriendCatalog] = useState([]); // saved friends (signed-in)
-  const [circles, setCircles] = useState([]);
-  const [circleCounts, setCircleCounts] = useState({});
-  const [selectedCircle, setSelectedCircle] = useState("");
+  const [friends, setFriends] = useState<Array<{ id?: string; name: string; phone?: string; account?: string }>>([]); // participants for this bill
+  const [friendCatalog, setFriendCatalog] = useState<Array<{ id: string; name: string; phone: string; account?: string }>>([]); // saved friends (signed-in)
+  const [circles, setCircles] = useState<Array<{ id: string; name: string; created_at: string }>>([]);
+  const [circleCounts, setCircleCounts] = useState<Record<string, number>>({});
+  const [selectedCircle, setSelectedCircle] = useState<string>("");
   const [friendSearch, setFriendSearch] = useState("");
 
   // Load saved friends catalog: from Supabase when signed in; anonymous has none
@@ -276,7 +276,7 @@ export default function BillSplitter({ session }) {
   ];
 
   // Friend management
-  const [newFriend, setNewFriend] = useState({ name: "", phone: "", account: "" });
+  const [newFriend, setNewFriend] = useState<{ name: string; phone: string; account: string }>({ name: "", phone: "", account: "" });
   const [showAddFriend, setShowAddFriend] = useState(false);
 
   const addFriend = async () => {
@@ -557,19 +557,19 @@ export default function BillSplitter({ session }) {
   const ocrReaderRef = useRef(null);
 
   // ---- Toast (nice popup) ----
-const [toast, setToast] = useState(null); // { msg, kind: 'success'|'warning'|'error' }
-function notify(msg, kind = 'success') {
+const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'warning' | 'error' } | null>(null);
+function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') {
   setToast({ msg, kind });
   window.clearTimeout(notify._t);
   notify._t = window.setTimeout(() => setToast(null), 2600);
 }
 
   const [showOcrModal, setShowOcrModal] = useState(false);
-  const [scannedItems, setScannedItems] = useState([]);
-  const [scannedText, setScannedText] = useState("");
-  const [scannedSummary, setScannedSummary] = useState(EMPTY_SCAN_SUMMARY);
+  const [scannedItems, setScannedItems] = useState<Array<any>>([]);
+  const [scannedText, setScannedText] = useState<string>("");
+  const [scannedSummary, setScannedSummary] = useState<typeof EMPTY_SCAN_SUMMARY>(EMPTY_SCAN_SUMMARY);
 
-  const mergeScannedItems = (items) => {
+  const mergeScannedItems = (items: any[]) => {
     const merged = [];
     items.forEach((item) => {
       const trimmedName = (item.name || "").trim();
@@ -594,7 +594,7 @@ function notify(msg, kind = 'success') {
     return merged;
   };
 
-  const handleOcrItems = (result) => {
+  const handleOcrItems = (result: any) => {
     const items = Array.isArray(result?.items) ? result.items : [];
     const rawText = typeof result?.rawText === "string" ? result.rawText : "";
     const summary = result?.summary || {};
@@ -639,17 +639,17 @@ function notify(msg, kind = 'success') {
     setShowOcrModal(true);
   };
 
-  const handleOcrError = (message) => {
+  const handleOcrError = (message: string) => {
     notify(message || "Failed to scan receipt.", "error");
   };
 
-  const updateScannedItem = (index, patch) => {
+  const updateScannedItem = (index: number, patch: any) => {
     setScannedItems((prev) =>
       prev.map((item, i) => (i === index ? { ...item, ...patch } : item))
     );
   };
 
-  const toggleScannedParticipant = (index, name) => {
+  const toggleScannedParticipant = (index: number, name: string) => {
     setScannedItems((prev) =>
       prev.map((item, i) => {
         if (i !== index) return item;
@@ -664,7 +664,7 @@ function notify(msg, kind = 'success') {
     );
   };
 
-  const computeTotalsForItems = (items, adjustments) => {
+  const computeTotalsForItems = (items: any[], adjustments: { discount1: number; serviceCharge: number; discount2: number; gst: number }) => {
     const subtotal = items.reduce((sum, item) => {
       const qty = Number(item.qty ?? item.quantity ?? 0);
       const price = Number(item.price ?? 0);
@@ -673,7 +673,7 @@ function notify(msg, kind = 'success') {
     }, 0);
 
     let running = subtotal;
-    const applyStage = (pct, type) => {
+    const applyStage = (pct: number, type: string) => {
       const rate = Number(pct) || 0;
       if (!rate) return;
       const delta = running * (rate / 100);
@@ -688,7 +688,7 @@ function notify(msg, kind = 'success') {
     return { subtotal, total: running };
   };
 
-  const formatMoney = (amount, currencyCode) => {
+  const formatMoney = (amount: number, currencyCode: string) => {
     const value = Number(amount);
     if (!Number.isFinite(value)) return '';
     const code = currencyCode || bill.currency || 'MVR';

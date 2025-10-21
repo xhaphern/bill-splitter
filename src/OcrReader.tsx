@@ -424,12 +424,23 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         abortControllerRef.current?.abort();
         abortControllerRef.current = null;
         setControllerActive(false);
-        // Reset all progress state after a brief delay to allow modal transition
-        setTimeout(() => {
-          setStatus("");
-          setStage("");
-          setProgress(0);
-        }, 500);
+
+        // Only reset for successful scans, not errors (errors handle their own reset)
+        if (!hadError) {
+          // Clear any ongoing progress animation
+          if (progressAnimationRef.current) {
+            clearInterval(progressAnimationRef.current);
+            progressAnimationRef.current = null;
+          }
+
+          // Reset all progress state after a brief delay to allow modal transition
+          resetTimeoutRef.current = setTimeout(() => {
+            setStatus("");
+            setStage("");
+            setProgress(0);
+            setHasError(false);
+          }, 500);
+        }
       }
     };
 
