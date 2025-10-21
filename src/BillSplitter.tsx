@@ -769,7 +769,7 @@ function notify(msg, kind = 'success') {
       let gstPct = prev.gst;
 
       // Apply discount1 from OCR if available
-      if (summaryForCommit.discount1Percent !== null && Number.isFinite(summaryForCommit.discount1Percent) && summaryForCommit.discount1Percent >= 0) {
+      if (Number.isFinite(summaryForCommit.discount1Percent) && summaryForCommit.discount1Percent >= 0) {
         discount1Pct = summaryForCommit.discount1Percent;
         appliedDiscount1 = discount1Pct;
       }
@@ -789,13 +789,13 @@ function notify(msg, kind = 'success') {
       }
 
       // Apply discount2 from OCR if available
-      if (summaryForCommit.discount2Percent !== null && Number.isFinite(summaryForCommit.discount2Percent) && summaryForCommit.discount2Percent >= 0) {
+      if (Number.isFinite(summaryForCommit.discount2Percent) && summaryForCommit.discount2Percent >= 0) {
         discount2Pct = summaryForCommit.discount2Percent;
         appliedDiscount2 = discount2Pct;
       }
 
       // Apply GST from OCR if available
-      if (summaryForCommit.gstPercent !== null && Number.isFinite(summaryForCommit.gstPercent) && summaryForCommit.gstPercent >= 0) {
+      if (Number.isFinite(summaryForCommit.gstPercent) && summaryForCommit.gstPercent >= 0) {
         gstPct = summaryForCommit.gstPercent;
         appliedGst = gstPct;
       }
@@ -1204,6 +1204,7 @@ function notify(msg, kind = 'success') {
         </div>
 
         {/* Top controls */}
+        {bill.items.length > 0 && (
         <div className="mb-4">
           <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1258,6 +1259,7 @@ function notify(msg, kind = 'success') {
             </div>
           </div>
         </div>
+        )}
 
           <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,2fr),minmax(0,1fr)] lg:items-start lg:gap-4">
             <div className="space-y-4">
@@ -1528,15 +1530,13 @@ function notify(msg, kind = 'success') {
               </div>
 
               {/* OCR Reader - always mounted so ref is available */}
-              <div className="mb-6">
-                <OcrReader
-                  ref={ocrReaderRef}
-                  onParse={handleOcrItems}
-                  onError={handleOcrError}
-                  onStart={() => setShowItemModal(false)}
-                  compact
-                />
-              </div>
+              <OcrReader
+                ref={ocrReaderRef}
+                onParse={handleOcrItems}
+                onError={handleOcrError}
+                onStart={() => setShowItemModal(false)}
+                compact
+              />
 
               {bill.items.length === 0 ? (
                 <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-900/20 via-slate-900/70 to-teal-900/20 card-padding shadow-xl backdrop-blur text-center">

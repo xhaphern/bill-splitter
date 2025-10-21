@@ -64,20 +64,6 @@ async function scanWithGemini(imagePayload) {
             {
               parts: [
                 {
-                  // OCR Prompt for Receipt Parsing
-                  //
-                  // This prompt extracts line items and financial summary from receipt images.
-                  //
-                  // Expected Calculation Order (as commonly seen on receipts):
-                  // 1. Subtotal (sum of all items)
-                  // 2. Discount 1 (first discount percentage applied to subtotal)
-                  // 3. Service Charge (percentage or amount added after first discount)
-                  // 4. Discount 2 (second discount percentage if applicable)
-                  // 5. GST/Tax (percentage applied after all discounts and service charge)
-                  // 6. Total (final amount)
-                  //
-                  // Note: Not all receipts follow this exact order. The OCR extracts what's visible.
-                  // The application layer handles the actual calculation logic.
                   text: `You are a receipt OCR assistant. Extract ALL purchased line items and key totals from this receipt image.\nOutput ONLY a JSON object with this exact shape (no prose, markdown, or code fences):\n{\n  "items": [\n    {"name": "Chicken Burger", "qty": 1, "price": 42.50},\n    {"name": "Iced Tea", "qty": 2, "price": 15.00}\n  ],\n  "summary": {\n    "subtotal": 72.50,\n    "discount1Percent": 5,\n    "serviceChargeAmount": 7.25,\n    "serviceChargePercent": 10,\n    "discount2Percent": 10,\n    "gstPercent": 8,\n    "total": 79.75,\n    "currency": "MVR"\n  }\n}\n\nRules:\n- Items must exclude subtotals, totals, tax, service charges, and discounts.\n- "qty" defaults to 1 when not shown on the receipt.\n- "price" is the unit price (no currency symbols).\n- "summary.subtotal", "summary.serviceChargeAmount", and "summary.total" are monetary amounts (not percentages). Use null if a value is not visible.\n- "summary.discount1Percent" is the first discount percentage if any (e.g., 5 for "5% discount", 10 for "10% off"). Use null if not visible.\n- "summary.serviceChargePercent" is the service charge percentage (e.g., 10 for 10%, 15 for 15%). Extract this from the receipt if visible (often shown as "Service Charge 10%" or "SC 10%"). Use null if not visible.\n- "summary.discount2Percent" is the second discount percentage if any (some receipts have multiple discounts). Use null if not visible.\n- "summary.gstPercent" is the GST/tax percentage (e.g., 8 for "GST 8%", 5 for "Tax 5%"). Use null if not visible.\n- "summary.currency" should return the major currency code (e.g., "MVR", "USD") if visible, otherwise null.\n- Return an empty array for items if nothing is detected, but keep the JSON object structure.\n- Do NOT include any text outside of the JSON object.`,
                 },
                 {

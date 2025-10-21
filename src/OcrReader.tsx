@@ -380,9 +380,7 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         };
 
         onParse?.({ items: parsedItems, rawText, summary: mergedSummary });
-
-        // Animate to 100% to show completion
-        animateProgressTo(1, 400);
+        setProgress(1);
         setStage("Scan complete");
         return true;
       } catch (err) {
@@ -426,23 +424,12 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         abortControllerRef.current?.abort();
         abortControllerRef.current = null;
         setControllerActive(false);
-
-        // Only reset for successful scans, not errors (errors handle their own reset)
-        if (!hadError) {
-          // Clear any ongoing progress animation
-          if (progressAnimationRef.current) {
-            clearInterval(progressAnimationRef.current);
-            progressAnimationRef.current = null;
-          }
-
-          // Reset all progress state after a brief delay to allow modal transition
-          resetTimeoutRef.current = setTimeout(() => {
-            setStatus("");
-            setStage("");
-            setProgress(0);
-            setHasError(false);
-          }, 500);
-        }
+        // Reset all progress state after a brief delay to allow modal transition
+        setTimeout(() => {
+          setStatus("");
+          setStage("");
+          setProgress(0);
+        }, 500);
       }
     };
 

@@ -121,13 +121,16 @@ export default function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-[#05070b] via-[#0b111a] to-[#05070b] text-slate-100">
+        <header className="mx-auto flex max-w-5xl items-center justify-between page-container" style={{paddingTop: '12px', paddingBottom: '12px'}}>
+          <div className="text-lg font-semibold tracking-wide text-white">
+            Bill Splitter
+          </div>
+        </header>
+
         {initializing ? (
           <main className="mx-auto max-w-5xl page-container">
-            <div className="min-h-[40vh] grid place-items-center">
-              <div className="flex flex-col items-center gap-3">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-400" />
-                <span className="text-sm text-slate-400">Loading…</span>
-              </div>
+            <div className="min-h-[40vh] grid place-items-center text-slate-300">
+              Loading…
             </div>
           </main>
         ) : (

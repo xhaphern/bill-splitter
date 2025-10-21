@@ -9,7 +9,7 @@ export { X } from "phosphor-react";
 // Auth - Regular weight
 export { SignIn as LogIn } from "phosphor-react";
 export { SignOut as LogOut } from "phosphor-react";
-export { User as UserCircle } from "phosphor-react";  // User has better fill variant than UserCircle
+export { UserCircle } from "phosphor-react";
 export { GithubLucide as Github };
 
 // General UI - Regular weight
