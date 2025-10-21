@@ -148,7 +148,7 @@ export default function BillDetailPage(): JSX.Element {
 
   // Extract data before early returns to avoid hook order issues
   const { bill, friends = [] } = row?.payload ?? {};
-  const items = Array.isArray(bill?.items) ? bill.items ?? [] : [];
+  const items = Array.isArray(bill?.items) ? bill.items : [];
 
   const serviceChargePercent = Number(bill?.sc ?? bill?.serviceCharge ?? 0);
   const gstPercent = Number(bill?.gst ?? bill?.GST ?? 0);

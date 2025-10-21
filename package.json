@@ -13,15 +13,11 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@cds/core": "^6.16.1",
-    "@clr/ui": "^17.11.7",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.3",
     "@supabase/supabase-js": "^2.57.2",
-    "bootstrap-icons": "^1.13.1",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.545.0",
-    "mingcute_icon": "^2.9.6",
     "phosphor-react": "^1.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

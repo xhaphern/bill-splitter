@@ -168,6 +168,15 @@
     background-position: 200% 50%;
   }
 }
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
 /* --- Page shell spacing (safe above bottom tab bar) --- */
 .page-shell{
   padding-top: 1rem;                /* ~pt-4 */

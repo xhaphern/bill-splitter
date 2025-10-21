@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense, startTransition } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   BrowserRouter as Router,
@@ -12,11 +12,17 @@ import { Home, Clock3, Users as UsersIcon, UserCircle, ScanText } from "./icons"
 import BillSplitter from "./BillSplitter";
 import TabBar, { TabBarItem } from "./components/TabBar";
 
+// Lazy load pages with preloading capability
 const HistoryPage = lazy(() => import("./pages/HistoryPage"));
 const FriendsPage = lazy(() => import("./pages/FriendsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const BillDetailPage = lazy(() => import("./pages/BillDetailPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+
+// Preload functions for eager loading
+const preloadHistoryPage = () => import("./pages/HistoryPage");
+const preloadFriendsPage = () => import("./pages/FriendsPage");
+const preloadProfilePage = () => import("./pages/ProfilePage");
 
 interface PrivateRouteProps {
   session: Session | null;
@@ -33,6 +39,35 @@ function PrivateRoute({ session, children, from = "/split", loginMessage }: Priv
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
+
+  // Preload routes after initial render for faster navigation
+  useEffect(() => {
+    // Use requestIdleCallback if available, otherwise setTimeout
+    const schedulePreload = (callback: () => void) => {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(callback, { timeout: 2000 });
+      } else {
+        setTimeout(callback, 1000);
+      }
+    };
+
+    // Preload all routes in sequence with small delays using startTransition for non-blocking
+    schedulePreload(() => {
+      startTransition(() => {
+        preloadHistoryPage();
+        setTimeout(() => {
+          startTransition(() => {
+            preloadFriendsPage();
+            setTimeout(() => {
+              startTransition(() => {
+                preloadProfilePage();
+              });
+            }, 100);
+          });
+        }, 100);
+      });
+    });
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -86,24 +121,24 @@ export default function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-[#05070b] via-[#0b111a] to-[#05070b] text-slate-100">
-        <header className="mx-auto flex max-w-5xl items-center justify-between page-container" style={{paddingTop: '12px', paddingBottom: '12px'}}>
-          <div className="text-lg font-semibold tracking-wide text-white">
-            Bill Splitter
-          </div>
-        </header>
-
         {initializing ? (
           <main className="mx-auto max-w-5xl page-container">
-            <div className="min-h-[40vh] grid place-items-center text-slate-300">
-              Loading…
+            <div className="min-h-[40vh] grid place-items-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-400" />
+                <span className="text-sm text-slate-400">Loading…</span>
+              </div>
             </div>
           </main>
         ) : (
           <main className="mx-auto max-w-5xl page-container">
             <Suspense
               fallback={
-                <div className="min-h-[40vh] grid place-items-center text-slate-300">
-                  Loading…
+                <div className="min-h-[30vh] grid place-items-center">
+                  <div className="flex flex-col items-center gap-3 opacity-0 animate-[fadeIn_0.15s_ease-in_forwards]">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-400" />
+                    <span className="text-sm text-slate-400">Loading…</span>
+                  </div>
                 </div>
               }
             >

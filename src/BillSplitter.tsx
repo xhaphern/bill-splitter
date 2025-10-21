@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
@@ -32,8 +31,8 @@ import CameraOverlay from "./components/CameraOverlay";
 
 const STORAGE_FRIENDS = "bs_friends_v1";
 const STORAGE_BILL   = "bs_bill_v1";
-const currencySymbols = { MVR: "MVR ", USD: "$", EUR: "€", GBP: "£", INR: "₹", SGD: "S$", AUD: "A$", CAD: "C$", JPY: "¥" };
-const fmt = (n) => (Number(n) || 0).toFixed(2);
+const currencySymbols: Record<string, string> = { MVR: "MVR ", USD: "$", EUR: "€", GBP: "£", INR: "₹", SGD: "S$", AUD: "A$", CAD: "C$", JPY: "¥" };
+const fmt = (n: number | string | null | undefined) => (Number(n) || 0).toFixed(2);
 const EMPTY_SCAN_SUMMARY = {
   subtotal: null,
   serviceChargeAmount: null,
@@ -45,9 +44,9 @@ const EMPTY_SCAN_SUMMARY = {
   currency: null,
 };
 
-const normalizePhone = (value) => String(value ?? "").replace(/\D/g, "");
+const normalizePhone = (value: string | number | null | undefined) => String(value ?? "").replace(/\D/g, "");
 
-const parseNumber = (value) => {
+const parseNumber = (value: string | number | null | undefined): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
     const parsed = Number(value.replace(/,/g, ""));
@@ -56,7 +55,7 @@ const parseNumber = (value) => {
   return null;
 };
 
-function SettingInput({ label, value, onChange }) {
+function SettingInput({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
   return (
     <div className="rounded-2xl border border-slate-700/70 bg-slate-950/70 p-3">
       <span className="text-xs uppercase tracking-wide text-emerald-200/80">{label}</span>
@@ -96,8 +95,8 @@ const toneMap = {
   },
 };
 
-function ActionButton({ icon, label, onClick, tone = "default" }) {
-  const palette = toneMap[tone] ?? toneMap.default;
+function ActionButton({ icon, label, onClick, tone = "default" }: { icon: React.ReactNode; label: string; onClick: () => void; tone?: string }) {
+  const palette = toneMap[tone as keyof typeof toneMap] ?? toneMap.default;
   return (
     <button
       type="button"
@@ -350,7 +349,7 @@ export default function BillSplitter({ session }) {
     }
   };
 
-  const removeFriend = (friendId, friendName) => {
+  const removeFriend = (friendId: string | undefined, friendName: string) => {
     // Remove from this bill only; don't delete saved friend records
     setBill((s) => ({
       ...s,
@@ -368,7 +367,27 @@ export default function BillSplitter({ session }) {
   };
 
   // ---- Bill state (persist anonymous; persist to localStorage only when signed in) ----
-  const defaultBill = {
+  type BillItem = {
+    id: number;
+    name: string;
+    qty: number;
+    price: number;
+    participants: string[];
+  };
+
+  type BillState = {
+    title: string;
+    date: string;
+    currency: string;
+    discount1: number;
+    serviceCharge: number;
+    discount2: number;
+    gst: number;
+    payer: string;
+    items: BillItem[];
+  };
+
+  const defaultBill: BillState = {
     title: "",
     date: "",
     currency: "MVR",
@@ -380,7 +399,7 @@ export default function BillSplitter({ session }) {
     items: [],
   };
 
-  const [bill, setBill] = useState(() => {
+  const [bill, setBill] = useState<BillState>(() => {
     if (!session?.user?.id) return defaultBill;
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_BILL));
@@ -409,8 +428,8 @@ export default function BillSplitter({ session }) {
 
   // ---- Item modal ----
   const [showItemModal, setShowItemModal] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [itemForm, setItemForm] = useState({ name: "", qty: "1", price: "", participants: [] });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [itemForm, setItemForm] = useState<{ name: string; qty: string; price: string; participants: string[] }>({ name: "", qty: "1", price: "", participants: [] });
 
   const openAddItem = () => {
     setEditingId(null);
@@ -418,7 +437,7 @@ export default function BillSplitter({ session }) {
     setItemForm({ name: "", qty: "1", price: "", participants: [] });
     setShowItemModal(true);
   };
-  const openEditItem = (it) => {
+  const openEditItem = (it: { id: number; name?: string; qty?: number; price?: number; participants?: string[] }) => {
     setEditingId(it.id);
     setItemForm({
       name: it.name || "",
@@ -428,7 +447,7 @@ export default function BillSplitter({ session }) {
     });
     setShowItemModal(true);
   };
-  const toggleFormParticipant = (name) => {
+  const toggleFormParticipant = (name: string) => {
     setItemForm(f => ({
       ...f,
       participants: f.participants.includes(name)
@@ -455,11 +474,11 @@ export default function BillSplitter({ session }) {
     }
     setShowItemModal(false);
   };
-  const deleteItem = (id) => setBill(s => ({ ...s, items: s.items.filter(it => it.id !== id) }));
+  const deleteItem = (id: number) => setBill(s => ({ ...s, items: s.items.filter(it => it.id !== id) }));
 
   // ---- Math ----
   const calc = useMemo(() => {
-    const perParticipantSubtotal = Object.fromEntries(allParticipants.map(p => [p.name, 0]));
+    const perParticipantSubtotal: Record<string, number> = Object.fromEntries(allParticipants.map(p => [p.name, 0]));
     let subtotal = 0;
     bill.items.forEach(it => {
       const rowTotal = Number(it.qty || 0) * Number(it.price || 0);
@@ -471,9 +490,9 @@ export default function BillSplitter({ session }) {
       }
     });
 
-    const run = { ...perParticipantSubtotal };
-    const stage = (pct, isDiscount) => {
-      const delta = {}; let totalDelta = 0;
+    const run: Record<string, number> = { ...perParticipantSubtotal };
+    const stage = (pct: number, isDiscount: boolean) => {
+      const delta: Record<string, number> = {}; let totalDelta = 0;
       Object.entries(run).forEach(([name, base]) => {
         const x = (isDiscount ? -1 : 1) * base * (pct / 100);
         delta[name] = x; run[name] = base + x; totalDelta += x;
@@ -481,20 +500,20 @@ export default function BillSplitter({ session }) {
       return { delta, totalDelta };
     };
 
-    const rows = [];
+    const rows: Array<{ label: string; delta: Record<string, number>; totalDelta: number }> = [];
     const d1 = Number(bill.discount1)||0, sc = Number(bill.serviceCharge)||0, d2=Number(bill.discount2)||0, gst=Number(bill.gst)||0;
     if (d1>0) rows.push({ label:`Discount 1 (${d1}%)`, ...stage(d1,true) });
     if (sc>0) rows.push({ label:`S/C (${sc}%)`,      ...stage(sc,false) });
     if (d2>0) rows.push({ label:`Discount 2 (${d2}%)`,...stage(d2,true) });
     if (gst>0) rows.push({ label:`GST (${gst}%)`,     ...stage(gst,false) });
 
-    const perParticipantPayable = run;
-    const grandPayable = Object.values(run).reduce((a,b)=>a+b,0);
+    const perParticipantPayable: Record<string, number> = run;
+    const grandPayable: number = Object.values(run).reduce((a,b)=>a+b,0);
 
     return { perParticipantSubtotal, grandSubtotal: subtotal, rows, perParticipantPayable, grandPayable };
   }, [bill.items, bill.discount1, bill.serviceCharge, bill.discount2, bill.gst, allParticipants]);
 
-  const cellShare = (it, name) => {
+  const cellShare = (it: { qty?: number; price?: number; participants?: string[] }, name: string): number => {
     const total = Number(it.qty || 0) * Number(it.price || 0);
     const sel = it.participants || [];
     if (!sel.includes(name) || sel.length===0) return 0;
@@ -750,13 +769,13 @@ function notify(msg, kind = 'success') {
       let gstPct = prev.gst;
 
       // Apply discount1 from OCR if available
-      if (Number.isFinite(summaryForCommit.discount1Percent) && summaryForCommit.discount1Percent >= 0) {
+      if (summaryForCommit.discount1Percent !== null && Number.isFinite(summaryForCommit.discount1Percent) && summaryForCommit.discount1Percent >= 0) {
         discount1Pct = summaryForCommit.discount1Percent;
         appliedDiscount1 = discount1Pct;
       }
 
       // Prioritize service charge percentage from OCR if available
-      if (Number.isFinite(summaryForCommit.serviceChargePercent) && summaryForCommit.serviceChargePercent >= 0) {
+      if (summaryForCommit.serviceChargePercent !== null && Number.isFinite(summaryForCommit.serviceChargePercent) && summaryForCommit.serviceChargePercent >= 0) {
         serviceChargePct = summaryForCommit.serviceChargePercent;
         appliedServiceChargePct = serviceChargePct;
       }
@@ -770,13 +789,13 @@ function notify(msg, kind = 'success') {
       }
 
       // Apply discount2 from OCR if available
-      if (Number.isFinite(summaryForCommit.discount2Percent) && summaryForCommit.discount2Percent >= 0) {
+      if (summaryForCommit.discount2Percent !== null && Number.isFinite(summaryForCommit.discount2Percent) && summaryForCommit.discount2Percent >= 0) {
         discount2Pct = summaryForCommit.discount2Percent;
         appliedDiscount2 = discount2Pct;
       }
 
       // Apply GST from OCR if available
-      if (Number.isFinite(summaryForCommit.gstPercent) && summaryForCommit.gstPercent >= 0) {
+      if (summaryForCommit.gstPercent !== null && Number.isFinite(summaryForCommit.gstPercent) && summaryForCommit.gstPercent >= 0) {
         gstPct = summaryForCommit.gstPercent;
         appliedGst = gstPct;
       }
@@ -838,7 +857,7 @@ function notify(msg, kind = 'success') {
     discardScannedItems();
   };
 
-  const [activeItemMenu, setActiveItemMenu] = useState(null); // { id, view } | null
+  const [activeItemMenu, setActiveItemMenu] = useState<{ id: number; view: string } | null>(null);
 
   useEffect(() => {
     if (!activeItemMenu) return;
@@ -1134,16 +1153,15 @@ function notify(msg, kind = 'success') {
   };
   const handleCameraCapture = async (dataUrl: string) => {
     if (!ocrReaderRef.current?.processDataUrl) return;
-    setCameraProcessing(true);
+    // Close camera overlay immediately after capture so user sees progress in main view
+    setCameraOverlayOpen(false);
+    setCameraProcessing(false);
+
+    // Process the image in the background
     try {
-      const success = await ocrReaderRef.current.processDataUrl(dataUrl, { origin: "camera" });
-      if (success) {
-        setCameraOverlayOpen(false);
-      }
+      await ocrReaderRef.current.processDataUrl(dataUrl, { origin: "camera" });
     } catch (err) {
       console.error("Camera capture failed", err);
-    } finally {
-      setCameraProcessing(false);
     }
   };
   const handleCameraUpload = () => {
@@ -1186,54 +1204,60 @@ function notify(msg, kind = 'success') {
         </div>
 
         {/* Top controls */}
-        {bill.items.length > 0 && (
         <div className="mb-4">
           <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto lg:justify-end">
-                <ActionButton
-                  icon={<Plus size={18} />}
-                  label="New"
-                  onClick={() => {
-                    setBill({
-                      title: "",
-                      date: "",
-                      currency: "MVR",
-                      discount1: 0,
-                      serviceCharge: 10,
-                      discount2: 0,
-                      gst: 8,
-                      payer: "",
-                      items: [],
-                    });
-                    notify("New bill started");
-                  }}
-                />
-                <ActionButton
-                  icon={<SaveIcon size={18} />}
-                  label="Save bill"
-                  onClick={handleSaveToHistory}
-                  tone="emerald"
-                />
-                <DownloadButton
-                  onSelect={(mode) => {
-                    exportImage("png", mode);
-                  }}
-                  open={downloadMenuOpen}
-                  setOpen={setDownloadMenuOpen}
-                  ref={downloadMenuRef}
-                />
-                <ActionButton
-                  icon={<Share2 size={18} />}
-                  label="Share"
-                  onClick={shareBill}
-                  tone="indigo"
-                />
+                {bill.items.length > 0 ? (
+                  <>
+                    <ActionButton
+                      icon={<Plus size={18} />}
+                      label="New"
+                      onClick={() => {
+                        setBill({
+                          title: "",
+                          date: "",
+                          currency: "MVR",
+                          discount1: 0,
+                          serviceCharge: 10,
+                          discount2: 0,
+                          gst: 8,
+                          payer: "",
+                          items: [],
+                        });
+                        notify("New bill started");
+                      }}
+                    />
+                    <ActionButton
+                      icon={<SaveIcon size={18} />}
+                      label="Save bill"
+                      onClick={handleSaveToHistory}
+                      tone="emerald"
+                    />
+                    <DownloadButton
+                      onSelect={(mode) => {
+                        exportImage("png", mode);
+                      }}
+                      open={downloadMenuOpen}
+                      setOpen={setDownloadMenuOpen}
+                      ref={downloadMenuRef}
+                    />
+                    <ActionButton
+                      icon={<Share2 size={18} />}
+                      label="Share"
+                      onClick={shareBill}
+                      tone="indigo"
+                    />
+                  </>
+                ) : (
+                  <div className="text-sm text-slate-400 italic">
+                    Start by scanning a receipt or adding items below
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-        )}
 
           <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,2fr),minmax(0,1fr)] lg:items-start lg:gap-4">
             <div className="space-y-4">
@@ -1504,13 +1528,15 @@ function notify(msg, kind = 'success') {
               </div>
 
               {/* OCR Reader - always mounted so ref is available */}
-              <OcrReader
-                ref={ocrReaderRef}
-                onParse={handleOcrItems}
-                onError={handleOcrError}
-                onStart={() => setShowItemModal(false)}
-                compact
-              />
+              <div className="mb-6">
+                <OcrReader
+                  ref={ocrReaderRef}
+                  onParse={handleOcrItems}
+                  onError={handleOcrError}
+                  onStart={() => setShowItemModal(false)}
+                  compact
+                />
+              </div>
 
               {bill.items.length === 0 ? (
                 <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-900/20 via-slate-900/70 to-teal-900/20 card-padding shadow-xl backdrop-blur text-center">
