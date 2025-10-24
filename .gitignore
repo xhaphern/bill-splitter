@@ -70,11 +70,10 @@ Thumbs.db
 *.swo
 *~
 
-# Lock files (if using multiple package managers)
-# Uncomment if you want to ignore specific lock files
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
+# Lock files (using Bun, so ignore other package manager lock files)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 # Test coverage
 *.lcov
@@ -93,3 +92,7 @@ Thumbs.db
 # Screenshots and temporary images
 screenshots/
 *.screenshot.png
+
+# Icon migration artifacts
+src/icons.tsx.backup
+src/pages/IconComparisonPage.tsx

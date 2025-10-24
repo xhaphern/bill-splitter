@@ -18,6 +18,7 @@ const FriendsPage = lazy(() => import("./pages/FriendsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const BillDetailPage = lazy(() => import("./pages/BillDetailPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const IconComparisonPage = lazy(() => import("./pages/IconComparisonPage"));
 
 // Preload functions for eager loading
 const preloadHistoryPage = () => import("./pages/HistoryPage");
@@ -200,6 +201,7 @@ export default function App() {
                     </PrivateRoute>
                   }
                 />
+                <Route path="/icon-comparison" element={<IconComparisonPage />} />
                 <Route path="*" element={<Navigate to="/split" replace />} />
               </Routes>
             </Suspense>

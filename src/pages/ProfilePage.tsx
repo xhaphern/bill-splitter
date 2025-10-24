@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, getRedirectUrl } from "../supabaseClient";
 import { Github, LogOut, UserCircle, Google, Receipt, SaveIcon } from "../icons";
@@ -136,7 +136,7 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
               type="button"
               onClick={signInWithGitHub}
               aria-label="Continue with GitHub"
-              className="inline-flex h-16 w-16 items-center justify-center rounded-full border ring-1 border-slate-600/60 bg-slate-800/70 text-slate-100 shadow ring-emerald-500/20 transition-all duration-200 ease-out hover:-translate-y-1 hover:bg-slate-700/70 hover:ring-emerald-400/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 active:scale-105"
+              className="inline-flex h-16 w-16 items-center justify-center rounded-full border ring-1 border-slate-600/60 bg-slate-800/70 text-slate-100 shadow ring-emerald-500/20 transition-all duration-200 ease-out hover:-translate-y-2 hover:bg-slate-700/70 hover:ring-emerald-400/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 active:scale-105"
             >
               <Github size={28} />
             </button>
@@ -144,7 +144,7 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
               type="button"
               onClick={signInWithGoogle}
               aria-label="Continue with Google"
-              className="inline-flex h-16 w-16 items-center justify-center rounded-full border ring-1 border-slate-600/60 bg-slate-800/70 text-white shadow ring-emerald-500/20 transition-all duration-200 ease-out hover:-translate-y-1 hover:bg-slate-700/70 hover:ring-emerald-400/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 active:scale-105"
+              className="inline-flex h-16 w-16 items-center justify-center rounded-full border ring-1 border-slate-600/60 bg-slate-800/70 text-white shadow ring-emerald-500/20 transition-all duration-200 ease-out hover:-translate-y-2 hover:bg-slate-700/70 hover:ring-emerald-400/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 active:scale-105"
             >
               <Google className="h-7 w-7" />
             </button>
@@ -216,6 +216,20 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
           <LogOut size={18} />
           Sign out
         </button>
+      </div>
+
+      {/* Dev Tools Section */}
+      <div className="glass-panel card-padding">
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-slate-200">Developer Tools</div>
+          <Link
+            to="/icon-comparison"
+            className="block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300 transition-all hover:bg-white/10 hover:border-emerald-500/30"
+          >
+            View Icon Comparison
+            <div className="text-xs text-slate-500 mt-1">Compare current Phosphor icons with Iconify alternatives</div>
+          </Link>
+        </div>
       </div>
     </div>
   );

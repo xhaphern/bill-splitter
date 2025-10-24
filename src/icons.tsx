@@ -1,52 +1,82 @@
-// Central icon exports using Phosphor Icons for more expressive UI
-// Phosphor icons support weight variants: "thin" | "light" | "regular" | "bold" | "fill" | "duotone"
+// Central icon exports - Mix of Bootstrap Icons, Tabler, SVG Spinners and Phosphor
+//
+// INTENTIONAL DESIGN DECISIONS:
+// - Mixed icon sources chosen for best visual match per icon (primarily Bootstrap Icons)
+// - Mingcute icons used for LogIn/LogOut for their superior entrance/exit semantics
+// - Each icon was individually selected via comparison tool (see IconComparisonPage.tsx)
+// - To revert to original Phosphor icons, restore from icons.tsx.backup
+//
+// Icon sources:
+// - Bootstrap Icons (bi:*) - 31 icons - Primary set for consistency
+// - Mingcute (mingcute:*-line) - 2 icons - entrance-line, exit-line
+// - Tabler (tabler:*) - 1 icon - copy
+// - Phosphor (phosphor-react) - 1 icon - Home (kept from original)
+// - SVG Spinners (svg-spinners:*) - 5 loader variants
+// - Lucide (lucide-react) - 1 icon - Github
 import { Github as GithubLucide } from "lucide-react";
+import { Icon } from '@iconify/react';
+import { House as PhosphorHome } from "phosphor-react";
 
-// Navigation / chrome - Bold for prominence
-export { List as Menu } from "phosphor-react";
-export { X } from "phosphor-react";
+// Helper component to wrap Iconify icons with consistent sizing
+// NOTE: Mingcute icons naturally render smaller than Bootstrap icons
+// The 1.3x multiplier ensures visual consistency across all icon sets
+const IconWrapper = ({ icon, size = 24, className = "", ...props }: { icon: string; size?: number; className?: string; [key: string]: any }) => {
+  // Scale up Mingcute icons to match Bootstrap icon visual weight
+  const adjustedSize = icon.startsWith('mingcute:') ? size * 1.3 : size;
+  return <Icon icon={icon} width={adjustedSize} height={adjustedSize} className={className} style={{ pointerEvents: 'none' }} {...props} />;
+};
 
-// Auth - Regular weight
-export { SignIn as LogIn } from "phosphor-react";
-export { SignOut as LogOut } from "phosphor-react";
-export { UserCircle } from "phosphor-react";
+// Navigation / chrome
+export const Menu = (props: any) => <IconWrapper icon="bi:list" {...props} />;
+export const X = (props: any) => <IconWrapper icon="bi:x-lg" {...props} />;
+
+// Auth
+export const LogIn = (props: any) => <IconWrapper icon="mingcute:entrance-line" {...props} />;
+export const LogOut = (props: any) => <IconWrapper icon="mingcute:exit-line" {...props} />;
+export const UserCircle = (props: any) => <IconWrapper icon="bi:person-circle" {...props} />;
 export { GithubLucide as Github };
 
-// General UI - Regular weight
-export { MagnifyingGlass as Search } from "phosphor-react";
-export { Receipt } from "phosphor-react";
-export { House as Home } from "phosphor-react";
-export { Clock as Clock3 } from "phosphor-react";
-export { CaretRight as ChevronRight } from "phosphor-react";
-export { CaretDown as ChevronDown } from "phosphor-react";
-export { DotsThreeVertical as MoreVertical } from "phosphor-react";
+// General UI
+export const Search = (props: any) => <IconWrapper icon="bi:search" {...props} />;
+export const Receipt = (props: any) => <IconWrapper icon="bi:receipt" {...props} />;
+export { PhosphorHome as Home }; // Keep current Phosphor icon
+export const Clock3 = (props: any) => <IconWrapper icon="bi:clock" {...props} />;
+export const ChevronRight = (props: any) => <IconWrapper icon="bi:chevron-right" {...props} />;
+export const ChevronDown = (props: any) => <IconWrapper icon="bi:chevron-down" {...props} />;
+export const MoreVertical = (props: any) => <IconWrapper icon="bi:three-dots-vertical" {...props} />;
 
-// Actions - Bold for buttons
-export { Plus } from "phosphor-react";
-export { PlusCircle } from "phosphor-react";
-export { DownloadSimple as Download } from "phosphor-react";
-export { UploadSimple as Upload } from "phosphor-react";
-export { ShareNetwork as Share2 } from "phosphor-react";
-export { FloppyDisk as SaveIcon } from "phosphor-react";
+// Actions
+export const Plus = (props: any) => <IconWrapper icon="bi:plus-lg" {...props} />;
+export const PlusCircle = (props: any) => <IconWrapper icon="bi:plus-circle" {...props} />;
+export const Download = (props: any) => <IconWrapper icon="bi:download" {...props} />;
+export const Upload = (props: any) => <IconWrapper icon="bi:upload" {...props} />;
+export const Share2 = (props: any) => <IconWrapper icon="bi:share" {...props} />;
+export const SaveIcon = (props: any) => <IconWrapper icon="bi:floppy" {...props} />;
 
-// Content / context - Regular weight
-export { Users } from "phosphor-react";
-export { UserPlus } from "phosphor-react";
-export { Calculator } from "phosphor-react";
-export { PencilSimple as Pencil } from "phosphor-react";
-export { CreditCard } from "phosphor-react";
-export { Phone } from "phosphor-react";
-export { CheckCircle as CheckCircle2 } from "phosphor-react";
-export { WarningCircle as AlertTriangle } from "phosphor-react";
-export { XCircle } from "phosphor-react";
-export { Copy } from "phosphor-react";
-export { FileText } from "phosphor-react";
-export { Calendar } from "phosphor-react";
-export { Trash as Trash2 } from "phosphor-react";
-export { Scan as ScanText } from "phosphor-react";
+// Content / context
+export const Users = (props: any) => <IconWrapper icon="bi:people" {...props} />;
+export const UserPlus = (props: any) => <IconWrapper icon="bi:person-plus" {...props} />;
+export const Calculator = (props: any) => <IconWrapper icon="bi:calculator" {...props} />;
+export const Pencil = (props: any) => <IconWrapper icon="bi:pencil" {...props} />;
+export const CreditCard = (props: any) => <IconWrapper icon="bi:credit-card" {...props} />;
+export const Phone = (props: any) => <IconWrapper icon="bi:telephone" {...props} />;
+export const CheckCircle2 = (props: any) => <IconWrapper icon="bi:check-circle" {...props} />;
+export const AlertTriangle = (props: any) => <IconWrapper icon="bi:exclamation-triangle" {...props} />;
+export const XCircle = (props: any) => <IconWrapper icon="bi:x-circle" {...props} />;
+export const Copy = (props: any) => <IconWrapper icon="tabler:copy" {...props} />; // Using Tabler
+export const FileText = (props: any) => <IconWrapper icon="bi:file-text" {...props} />;
+export const Calendar = (props: any) => <IconWrapper icon="bi:calendar" {...props} />;
+export const Trash2 = (props: any) => <IconWrapper icon="bi:trash" {...props} />;
+export const ScanText = (props: any) => <IconWrapper icon="bi:upc-scan" {...props} />;
 
-// Loading spinner
-export { CircleNotch as Loader2 } from "phosphor-react";
+// Loading spinner - Primary option (blocks-shuffle-3)
+export const Loader2 = (props: any) => <IconWrapper icon="svg-spinners:blocks-shuffle-3" {...props} />;
+
+// Additional loader options available
+export const LoaderRingResize = (props: any) => <IconWrapper icon="svg-spinners:ring-resize" {...props} />;
+export const Loader180Ring = (props: any) => <IconWrapper icon="svg-spinners:180-ring" {...props} />;
+export const Loader90RingWithBg = (props: any) => <IconWrapper icon="svg-spinners:90-ring-with-bg" {...props} />;
+export const LoaderArrowRepeat = (props: any) => <IconWrapper icon="bi:arrow-repeat" {...props} />;
 
 // Keep Google icon from custom component
 export { Google } from "./icons/Google";
