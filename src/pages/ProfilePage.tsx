@@ -218,19 +218,6 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
         </button>
       </div>
 
-      {/* Dev Tools Section */}
-      <div className="glass-panel card-padding">
-        <div className="space-y-3">
-          <div className="text-sm font-semibold text-slate-200">Developer Tools</div>
-          <Link
-            to="/icon-comparison"
-            className="block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300 transition-all hover:bg-white/10 hover:border-emerald-500/30"
-          >
-            View Icon Comparison
-            <div className="text-xs text-slate-500 mt-1">Compare current Phosphor icons with Iconify alternatives</div>
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

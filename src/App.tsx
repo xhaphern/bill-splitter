@@ -160,7 +160,7 @@ export default function App() {
                       from="/history"
                       loginMessage="Sign in to view your bill history and saved bills."
                     >
-                      <HistoryPage session={session} />
+                      <HistoryPage />
                     </PrivateRoute>
                   }
                 />
@@ -184,7 +184,7 @@ export default function App() {
                       from="/friends"
                       loginMessage="Sign in to save your friends and organize them into circles for quick access when splitting bills."
                     >
-                      <FriendsPage session={session} />
+                      <FriendsPage />
                     </PrivateRoute>
                   }
                 />
