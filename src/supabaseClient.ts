@@ -24,7 +24,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: "pkce",
-    redirectTo: getRedirectUrl(),
   },
 });
 

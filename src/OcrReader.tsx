@@ -383,7 +383,8 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         };
 
         onParse?.({ items: parsedItems, rawText, summary: mergedSummary });
-        setProgress(1);
+        // Animate to 100% for completion
+        animateProgressTo(1, 300);
         setStage("Scan complete");
         setStatus("Completed");
         return true;

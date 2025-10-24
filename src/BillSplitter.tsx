@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import {
   Plus,
   X,
@@ -154,10 +155,10 @@ const DownloadButton = forwardRef<HTMLDivElement, { onSelect: (type: string) => 
   );
 });
 
-export default function BillSplitter({ session }: { session: any }) {
+export default function BillSplitter({ session }: { session: Session | null }) {
   // ---- Friends (participants for this bill) and catalog/circles ----
-  const [friends, setFriends] = useState<Array<{ id?: string; name: string; phone?: string; account?: string }>>([]); // participants for this bill
-  const [friendCatalog, setFriendCatalog] = useState<Array<{ id: string; name: string; phone: string; account?: string }>>([]); // saved friends (signed-in)
+  const [friends, setFriends] = useState<Participant[]>([]); // participants for this bill
+  const [friendCatalog, setFriendCatalog] = useState<Friend[]>([]); // saved friends (signed-in)
   const [circles, setCircles] = useState<Array<{ id: string; name: string; created_at: string }>>([]);
   const [circleCounts, setCircleCounts] = useState<Record<string, number>>({});
   const [selectedCircle, setSelectedCircle] = useState<string>("");
@@ -176,7 +177,12 @@ export default function BillSplitter({ session }: { session: any }) {
           .order('created_at', { ascending: true });
 
         if (error) throw error;
-        setFriendCatalog((data || []).map((row) => ({ ...row, phone: row.phone || "" })));
+        setFriendCatalog((data || []).map((row) => ({
+          id: row.id,
+          name: row.name,
+          phone: row.phone || "",
+          account: row.account
+        })));
         try { const counts = await fetchCircleMemberCounts(session.user.id); setCircleCounts(counts); } catch {}
       } catch (err) {
         console.error('Failed to load friends:', err);
@@ -342,7 +348,12 @@ export default function BillSplitter({ session }: { session: any }) {
         .select('id, name, account, phone')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: true });
-      if (!fetchError) setFriendCatalog((data || []).map((row) => ({ ...row, phone: row.phone || "" })));
+      if (!fetchError) setFriendCatalog((data || []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        phone: row.phone || "",
+        account: row.account
+      })));
     } catch (err) {
       console.error('Failed to add friend:', err);
       notify("Failed to add friend", "error");
@@ -385,6 +396,39 @@ export default function BillSplitter({ session }: { session: any }) {
     gst: number;
     payer: string;
     items: BillItem[];
+  };
+
+  type Friend = {
+    id: string;
+    name: string;
+    phone: string;
+    account?: string | null;
+  };
+
+  type Participant = {
+    id?: string;
+    name: string;
+    phone?: string;
+    account?: string | null;
+  };
+
+  type ScannedItem = {
+    tempId: number;
+    name: string;
+    qty: string;
+    price: string;
+    participants: string[];
+  };
+
+  type ScanSummary = {
+    subtotal: number | null;
+    serviceChargeAmount: number | null;
+    serviceChargePercent: number | null;
+    discount1Percent: number | null;
+    discount2Percent: number | null;
+    gstPercent: number | null;
+    total: number | null;
+    currency: string | null;
   };
 
   const defaultBill: BillState = {
@@ -568,12 +612,12 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
 }
 
   const [showOcrModal, setShowOcrModal] = useState(false);
-  const [scannedItems, setScannedItems] = useState<Array<any>>([]);
+  const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [scannedText, setScannedText] = useState<string>("");
-  const [scannedSummary, setScannedSummary] = useState<typeof EMPTY_SCAN_SUMMARY>(EMPTY_SCAN_SUMMARY);
+  const [scannedSummary, setScannedSummary] = useState<ScanSummary>(EMPTY_SCAN_SUMMARY);
 
-  const mergeScannedItems = (items: any[]) => {
-    const merged = [];
+  const mergeScannedItems = (items: ScannedItem[]): ScannedItem[] => {
+    const merged: ScannedItem[] = [];
     items.forEach((item) => {
       const trimmedName = (item.name || "").trim();
       const isModifierLabel =
@@ -587,7 +631,7 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
         const last = merged[merged.length - 1];
         const sanitized = trimmedName.replace(/^[+\-()]/, "").trim();
         last.name = sanitized ? `${last.name} ${sanitized}` : last.name;
-        last.price = Number((Number(last.price) + Number(item.price || 0)).toFixed(2));
+        last.price = String(Number((Number(last.price) + Number(item.price || 0)).toFixed(2)));
         return;
       }
 
@@ -646,7 +690,7 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
     notify(message || "Failed to scan receipt.", "error");
   };
 
-  const updateScannedItem = (index: number, patch: any) => {
+  const updateScannedItem = (index: number, patch: Partial<ScannedItem>) => {
     setScannedItems((prev) =>
       prev.map((item, i) => (i === index ? { ...item, ...patch } : item))
     );
@@ -772,7 +816,7 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
       let gstPct = prev.gst;
 
       // Apply discount1 from OCR if available
-      if (Number.isFinite(summaryForCommit.discount1Percent) && summaryForCommit.discount1Percent >= 0) {
+      if (summaryForCommit.discount1Percent !== null && Number.isFinite(summaryForCommit.discount1Percent) && summaryForCommit.discount1Percent >= 0) {
         discount1Pct = summaryForCommit.discount1Percent;
         appliedDiscount1 = discount1Pct;
       }
@@ -783,7 +827,7 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
         appliedServiceChargePct = serviceChargePct;
       }
       // Otherwise calculate from service charge amount if available
-      else if (Number.isFinite(summaryForCommit.serviceChargeAmount) && baseSubtotal > 0) {
+      else if (summaryForCommit.serviceChargeAmount !== null && Number.isFinite(summaryForCommit.serviceChargeAmount) && baseSubtotal > 0) {
         const derived = (summaryForCommit.serviceChargeAmount / baseSubtotal) * 100;
         if (Number.isFinite(derived) && derived >= 0) {
           serviceChargePct = Number(derived.toFixed(2));
@@ -792,13 +836,13 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
       }
 
       // Apply discount2 from OCR if available
-      if (Number.isFinite(summaryForCommit.discount2Percent) && summaryForCommit.discount2Percent >= 0) {
+      if (summaryForCommit.discount2Percent !== null && Number.isFinite(summaryForCommit.discount2Percent) && summaryForCommit.discount2Percent >= 0) {
         discount2Pct = summaryForCommit.discount2Percent;
         appliedDiscount2 = discount2Pct;
       }
 
       // Apply GST from OCR if available
-      if (Number.isFinite(summaryForCommit.gstPercent) && summaryForCommit.gstPercent >= 0) {
+      if (summaryForCommit.gstPercent !== null && Number.isFinite(summaryForCommit.gstPercent) && summaryForCommit.gstPercent >= 0) {
         gstPct = summaryForCommit.gstPercent;
         appliedGst = gstPct;
       }
@@ -1106,7 +1150,12 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
         .order('created_at', { ascending: true });
       
       if (!error) {
-        const normalized = (data || []).map((row) => ({ ...row, phone: row.phone || "" }));
+        const normalized = (data || []).map((row) => ({
+          id: row.id,
+          name: row.name,
+          phone: row.phone || "",
+          account: row.account
+        }));
         setFriendCatalog(normalized);
       }
       notify("Friends imported successfully ✅", "success");
@@ -2057,61 +2106,71 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
 
       {/* OCR Review modal */}
       {showOcrModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 pb-24">
-          <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-3xl border border-slate-700/70 bg-slate-900/85 p-6 pb-8 shadow-xl backdrop-blur">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-white text-lg font-semibold">Review scanned items</h3>
-                <p className="text-sm text-slate-300/80">Adjust details and pick participants before adding them to the bill.</p>
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
+          <div className="w-full max-w-3xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border-t sm:border border-slate-700/70 bg-slate-900/95 shadow-xl backdrop-blur">
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-700/70 px-4 sm:px-6 pt-4 pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-white text-base sm:text-lg font-semibold">Review scanned items</h3>
+                  <p className="text-xs sm:text-sm text-slate-300/80 mt-0.5">Adjust details and pick participants before adding them to the bill.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={discardScannedItems}
+                  className="flex-shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 transition hover:bg-slate-800/70 active:scale-95"
+                  aria-label="Close scanned items"
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={discardScannedItems}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/70 text-slate-300 transition hover:bg-slate-800/70"
-                aria-label="Close scanned items"
-              >
-                <X size={16} />
-              </button>
             </div>
 
-            <div className="mt-4 space-y-3">
+            {/* Scrollable content */}
+            <div className="px-4 sm:px-6 py-4 space-y-4 pb-safe">
               {scannedItems.map((item, idx) => (
-                <div key={item.tempId} className="rounded-2xl border border-slate-700/70 bg-slate-950/70 p-4">
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr),auto,auto]">
+                <div key={item.tempId} className="rounded-2xl border border-slate-700/70 bg-slate-950/70 p-4 sm:p-5 space-y-4">
+                  {/* Item Name - Full Width */}
+                  <div>
+                    <label className="mb-2 block text-xs uppercase tracking-wide text-slate-400 font-medium">Item name</label>
+                    <input
+                      value={item.name}
+                      onChange={(e) => updateScannedItem(idx, { name: e.target.value })}
+                      className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-4 py-3 text-base text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-500/60"
+                      placeholder="Enter item name"
+                    />
+                  </div>
+
+                  {/* Qty and Price - Side by Side */}
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="mb-1 block text-xs uppercase tracking-wide text-slate-400">Item name</label>
-                      <input
-                        value={item.name}
-                        onChange={(e) => updateScannedItem(idx, { name: e.target.value })}
-                        className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs uppercase tracking-wide text-slate-400">Qty</label>
+                      <label className="mb-2 block text-xs uppercase tracking-wide text-slate-400 font-medium">Qty</label>
                       <input
                         type="number"
                         min={1}
                         value={item.qty}
                         onChange={(e) => updateScannedItem(idx, { qty: e.target.value })}
-                        className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                        className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-4 py-3 text-base text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-500/60"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs uppercase tracking-wide text-slate-400">Price ({bill.currency})</label>
+                      <label className="mb-2 block text-xs uppercase tracking-wide text-slate-400 font-medium">Price ({bill.currency})</label>
                       <input
                         type="number"
                         min={0}
                         step="0.01"
+                        inputMode="decimal"
                         value={item.price}
                         onChange={(e) => updateScannedItem(idx, { price: e.target.value })}
-                        className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                        className="w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-4 py-3 text-base text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-500/60"
                       />
                     </div>
                   </div>
 
-                  <div className="mt-3">
-                    <span className="text-xs uppercase tracking-wide text-slate-400">Participants</span>
-                    <div className="mt-2 flex flex-wrap gap-2">
+                  {/* Participants */}
+                  <div>
+                    <label className="mb-2 block text-xs uppercase tracking-wide text-slate-400 font-medium">Participants</label>
+                    <div className="flex flex-wrap gap-2">
                       {allParticipants.map((p) => {
                         const active = item.participants.includes(p.name);
                         const colors = participantColor(p.name);
@@ -2120,7 +2179,7 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
                             key={`${item.tempId}-${p.name}`}
                             type="button"
                             onClick={() => toggleScannedParticipant(idx, p.name)}
-                            className={`rounded-full border px-3 py-1 text-sm transition ${active ? '' : 'bg-slate-800/80 text-slate-200 border-slate-700/70 hover:bg-slate-700/80'}`}
+                            className={`rounded-full border px-4 py-2 text-sm font-medium transition active:scale-95 ${active ? '' : 'bg-slate-800/80 text-slate-200 border-slate-700/70 hover:bg-slate-700/80'}`}
                             style={active ? { backgroundColor: colors.bg, borderColor: colors.border, color: colors.text } : undefined}
                           >
                             {p.name}
@@ -2129,7 +2188,7 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
                         );
                       })}
                       {!allParticipants.length && (
-                        <span className="text-xs text-slate-500">Add participants in the section above first.</span>
+                        <span className="text-sm text-slate-500">Add participants in the section above first.</span>
                       )}
                     </div>
                   </div>
@@ -2137,28 +2196,31 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
               ))}
 
               {scannedText && import.meta.env.DEV && (
-                <details className="rounded-2xl border border-slate-700/70 bg-slate-950/70 p-3 text-xs text-slate-300">
-                  <summary className="cursor-pointer text-emerald-200">Raw OCR output</summary>
-                  <pre className="mt-2 whitespace-pre-wrap break-words text-slate-300">{scannedText}</pre>
+                <details className="rounded-2xl border border-slate-700/70 bg-slate-950/70 p-4 text-xs text-slate-300">
+                  <summary className="cursor-pointer text-emerald-200 font-medium">Raw OCR output</summary>
+                  <pre className="mt-3 whitespace-pre-wrap break-words text-slate-300">{scannedText}</pre>
                 </details>
               )}
             </div>
 
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={discardScannedItems}
-                className="btn-apple btn-destructive"
-              >
-                Discard
-              </button>
-              <button
-                type="button"
-                onClick={commitScannedItems}
-                className="btn-apple btn-primary"
-              >
-                <SaveIcon size={15} /> Add to bill
-              </button>
+            {/* Footer Actions - Sticky */}
+            <div className="sticky bottom-0 z-10 bg-slate-900/95 backdrop-blur border-t border-slate-700/70 px-4 sm:px-6 py-4 pb-safe">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={discardScannedItems}
+                  className="btn-apple btn-destructive flex-1 sm:flex-initial"
+                >
+                  Discard
+                </button>
+                <button
+                  type="button"
+                  onClick={commitScannedItems}
+                  className="btn-apple btn-primary flex-1"
+                >
+                  <SaveIcon size={16} /> Add to bill
+                </button>
+              </div>
             </div>
           </div>
         </div>

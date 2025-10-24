@@ -4,6 +4,22 @@ import { Link } from "react-router-dom";
 import { Search, Receipt, Clock3, ChevronRight } from "../icons";
 import { supabase } from "../supabaseClient";
 
+const colorPalette = [
+  { text: "text-sky-200", bg: "bg-sky-900/40", border: "border-sky-500/50" },
+  { text: "text-amber-200", bg: "bg-amber-900/40", border: "border-amber-500/50" },
+  { text: "text-fuchsia-200", bg: "bg-fuchsia-900/40", border: "border-fuchsia-500/50" },
+  { text: "text-teal-200", bg: "bg-teal-900/40", border: "border-teal-500/50" },
+  { text: "text-indigo-200", bg: "bg-indigo-900/40", border: "border-indigo-500/50" },
+  { text: "text-rose-200", bg: "bg-rose-900/40", border: "border-rose-500/50" },
+  { text: "text-lime-200", bg: "bg-lime-900/40", border: "border-lime-500/50" },
+];
+
+function colorForName(name = "") {
+  const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const idx = Math.abs(hash) % colorPalette.length;
+  return colorPalette[idx];
+}
+
 function money(n, cur) {
   const x = Number(n);
   if (!Number.isFinite(x)) return `${cur} 0.00`;
@@ -34,6 +50,24 @@ function computeTotalFromPayload(payload) {
   return subtotal + sc + gst;
 }
 
+function getUniqueParticipants(payload) {
+  const p = payload || {};
+  const bill = p.bill || {};
+  const items = Array.isArray(bill.items) ? bill.items : [];
+  const participantSet = new Set();
+
+  items.forEach((item) => {
+    const participants = Array.isArray(item?.participants) ? item.participants : [];
+    participants.forEach((name) => {
+      if (name && typeof name === 'string') {
+        participantSet.add(name);
+      }
+    });
+  });
+
+  return Array.from(participantSet);
+}
+
 export default function HistoryPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,11 +79,12 @@ export default function HistoryPage() {
     (async () => {
       try {
         // RLS automatically filters by user - no need for getUser() first
+        // Use .select() with specific fields to reduce payload size
         const { data, error } = await supabase
           .from("bills")
           .select("id, title, currency, payload, created_at")
           .order("created_at", { ascending: false })
-          .limit(100); // Add limit for better performance
+          .limit(50); // Reduced limit for faster initial load
 
         if (error) throw error;
 
@@ -74,6 +109,7 @@ export default function HistoryPage() {
       rows.map((r) => ({
         ...r,
         total: computeTotalFromPayload(r?.payload),
+        participants: getUniqueParticipants(r?.payload),
       })),
     [rows]
   );
@@ -129,26 +165,41 @@ export default function HistoryPage() {
             <Link
               key={r.id}
               to={`/history/${r.id}`}
-              className="flex flex-col gap-3 rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur transition hover:border-emerald-600/50 hover:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur transition hover:border-emerald-600/50 hover:bg-slate-900/80"
             >
-              <div className="min-w-0">
-                <div className="truncate text-base font-semibold text-white">{r.title || "Untitled"}</div>
-                <div className="mt-1 flex items-center gap-2 text-sm text-emerald-200/80">
-                  <Clock3 size={14} />
-                  <span>{new Date(r.created_at).toLocaleString()}</span>
-                </div>
-                {r.payload?.bill?.date && (
-                  <div className="text-xs text-slate-400">
-                    Bill date: {new Date(r.payload.bill.date).toLocaleDateString()}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-base font-semibold text-white">{r.title || "Untitled"}</div>
+                  <div className="mt-1 flex items-center gap-2 text-sm text-emerald-200/80">
+                    <Clock3 size={14} />
+                    <span>{new Date(r.created_at).toLocaleString()}</span>
                   </div>
-                )}
+                  {r.payload?.bill?.date && (
+                    <div className="text-xs text-slate-400">
+                      Bill date: {new Date(r.payload.bill.date).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col items-start gap-1 sm:items-end">
+                  <span className="text-xs uppercase tracking-wide text-emerald-200/70">Total</span>
+                  <span className="text-lg font-bold text-emerald-300">{money(r.total, r.currency || "MVR")}</span>
+                </div>
               </div>
-              <div className="flex flex-col items-start gap-1 sm:items-end">
-                <span className="text-xs uppercase tracking-wide text-emerald-200/70">Total</span>
-                <span className="text-lg font-bold text-emerald-300">{money(r.total, r.currency || "MVR")}</span>
-                <span className="text-xs text-emerald-200/70">Currency {r.currency || "MVR"}</span>
-              </div>
-              <ChevronRight className="hidden text-emerald-200 sm:block" size={18} />
+              {r.participants && r.participants.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {r.participants.map((name) => {
+                    const color = colorForName(name);
+                    return (
+                      <span
+                        key={name}
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${color.bg} ${color.border} ${color.text}`}
+                      >
+                        {name}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </Link>
           ))}
         </div>

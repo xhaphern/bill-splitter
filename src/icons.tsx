@@ -3,7 +3,8 @@
 // INTENTIONAL DESIGN DECISIONS:
 // - Mixed icon sources chosen for best visual match per icon (primarily Bootstrap Icons)
 // - Mingcute icons used for LogIn/LogOut for their superior entrance/exit semantics
-// - Each icon was individually selected via comparison tool (see IconComparisonPage.tsx)
+// - Each icon was individually selected via interactive comparison tool
+// - Offline icon bundles preloaded for production (no CDN fetching)
 // - To revert to original Phosphor icons, restore from icons.tsx.backup
 //
 // Icon sources:
@@ -14,8 +15,19 @@
 // - SVG Spinners (svg-spinners:*) - 5 loader variants
 // - Lucide (lucide-react) - 1 icon - Github
 import { Github as GithubLucide } from "lucide-react";
-import { Icon } from '@iconify/react';
+import { Icon, addCollection } from '@iconify/react';
 import { House as PhosphorHome } from "phosphor-react";
+
+// Preload icon data for offline/production use (prevents CDN fetching)
+import bootstrapIcons from '@iconify-json/bi/icons.json';
+import mingcuteIcons from '@iconify-json/mingcute/icons.json';
+import tablerIcons from '@iconify-json/tabler/icons.json';
+import svgSpinnersIcons from '@iconify-json/svg-spinners/icons.json';
+
+addCollection(bootstrapIcons);
+addCollection(mingcuteIcons);
+addCollection(tablerIcons);
+addCollection(svgSpinnersIcons);
 
 // Helper component to wrap Iconify icons with consistent sizing
 // NOTE: Mingcute icons naturally render smaller than Bootstrap icons
