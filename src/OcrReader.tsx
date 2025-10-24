@@ -385,6 +385,7 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         onParse?.({ items: parsedItems, rawText, summary: mergedSummary });
         setProgress(1);
         setStage("Scan complete");
+        setStatus("Completed");
         return true;
       } catch (err) {
         hadError = true;
@@ -412,14 +413,7 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         setProgress(1); // Show full bar in red to indicate completion with error
         onError?.("Failed to scan receipt. Please try again with a clearer image.");
 
-        // Keep error state visible for longer before resetting
-        resetTimeoutRef.current = setTimeout(() => {
-          setStatus("");
-          setStage("");
-          setProgress(0);
-          setHasError(false);
-        }, 3000);
-
+        // Keep error state visible - don't auto-reset
         return false;
       } finally {
         setIsProcessing(false);
@@ -428,22 +422,13 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         abortControllerRef.current = null;
         setControllerActive(false);
 
-        // Only reset for successful scans, not errors (errors handle their own reset)
-        if (!hadError) {
-          // Clear any ongoing progress animation
-          if (progressAnimationRef.current) {
-            clearInterval(progressAnimationRef.current);
-            progressAnimationRef.current = null;
-          }
-
-          // Reset all progress state after a brief delay to allow modal transition
-          resetTimeoutRef.current = setTimeout(() => {
-            setStatus("");
-            setStage("");
-            setProgress(0);
-            setHasError(false);
-          }, 500);
+        // Clear any ongoing progress animation
+        if (progressAnimationRef.current) {
+          clearInterval(progressAnimationRef.current);
+          progressAnimationRef.current = null;
         }
+
+        // Don't auto-reset - keep the final state visible (completed or failed)
       }
     };
 
@@ -524,7 +509,7 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
               <div className={`flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.32em] ${
                 hasError ? "text-red-100/80" : "text-emerald-100/80"
               }`}>
-                <span>{hasError ? "Failed" : "Analyzing"}</span>
+                <span>{hasError ? "Failed" : (isProcessing ? "Analyzing" : "Completed")}</span>
                 <span className={`text-xs ${hasError ? "text-red-50" : "text-emerald-50"}`}>{`${percentage}%`}</span>
               </div>
               <div className={`relative h-2 overflow-hidden rounded-full ${
@@ -535,14 +520,14 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
                     hasError
                       ? "bg-gradient-to-r from-red-400 via-rose-400 to-orange-400"
                       : "bg-gradient-to-r from-emerald-300 via-teal-300 to-sky-400"
-                  } ${barWidth > 0 && !hasError ? "animate-shimmer-scan" : ""}`}
+                  } ${barWidth > 0 && !hasError && isProcessing ? "animate-shimmer-scan" : ""}`}
                   style={{ width: `${barWidth}%` }}
                 />
               </div>
               <div className={`flex items-center gap-3 text-[11px] font-medium ${
                 hasError ? "text-red-100" : "text-emerald-100"
               }`}>
-                {!hasError && (
+                {!hasError && isProcessing && (
                   <span className="relative flex h-7 w-7 items-center justify-center">
                     <span className={`absolute h-full w-full rounded-full border ${
                       hasError ? "border-red-200/40" : "border-emerald-200/40"
@@ -550,6 +535,13 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
                     <span className={`absolute h-full w-full rounded-full border-2 border-t-transparent animate-spin ${
                       hasError ? "border-red-200/90" : "border-emerald-200/90"
                     }`} />
+                  </span>
+                )}
+                {!hasError && !isProcessing && (
+                  <span className="relative flex h-7 w-7 items-center justify-center">
+                    <svg className="h-7 w-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
                   </span>
                 )}
                 {hasError && (

@@ -1196,7 +1196,7 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
   const payerAccount = payerParticipant?.account || "";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#05080f] via-[#070c14] to-[#05080f] p-4">
+    <div className="bg-gradient-to-b from-[#05080f] via-[#070c14] to-[#05080f] px-4 pt-4 pb-20">
       <div className="max-w-5xl mx-auto">
         {/* Header small */}
         <div className="text-center mb-3">
@@ -1264,18 +1264,18 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
         </div>
         )}
 
-          <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,2fr),minmax(0,1fr)] lg:items-start lg:gap-4">
-            <div className="space-y-4">
+          <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,2fr),minmax(0,1fr)] lg:items-start lg:gap-3">
+            <div className="space-y-3">
             {/* Participants */}
-            <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-200/80">
-                  <Users size={16} className="text-emerald-300" />
+            <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-200/80">
+                  <Users size={14} className="text-emerald-300" />
                   <span>Participants</span>
                 </div>
+                {session?.user?.id && (
                 <div className="flex flex-1 items-center justify-end gap-2 min-w-[240px]">
-                  {session?.user?.id && (
-                    <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl">
+                  <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl">
                       <input
                         placeholder="Search saved friends"
                         value={friendSearch}
@@ -1330,7 +1330,6 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
                         );
                       })()}
                     </div>
-                  )}
                   <button
                     onClick={() => setShowAddFriend((v) => !v)}
                     className="inline-flex items-center gap-2 rounded-full border border-slate-600/70 bg-slate-950/80 px-2 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10 sm:px-3 sm:text-sm"
@@ -1340,6 +1339,7 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
                     <span className="hidden sm:inline">{showAddFriend ? "Cancel" : "Add friend"}</span>
                   </button>
                 </div>
+                )}
               </div>
 
               {session?.user?.id && circles.length > 0 && (
@@ -1400,13 +1400,15 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
               <div className="flex flex-wrap gap-2">
                 {allParticipants.map((p) => {
                   if (p.isCurrentUser) {
+                    // Show " (You)" suffix only if user is signed in
+                    const displayText = session?.user?.id ? `${p.name} (You)` : p.name;
                     return (
                       <span
                         key={p.id ?? p.name}
-                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium bg-emerald-900/40 border-emerald-500/40 text-emerald-200"
+                      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium bg-emerald-900/40 border-emerald-500/40 text-emerald-200"
                       >
-                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-                        <span className="truncate max-w-[120px]">{p.name} (You)</span>
+                        <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                        <span className="truncate max-w-[120px]">{displayText}</span>
                       </span>
                     );
                   }
@@ -1414,24 +1416,24 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
                   return (
                     <span
                       key={p.id ?? p.name}
-                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium"
+                      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
                       style={{ backgroundColor: col.bg, borderColor: col.border, color: col.text }}
                     >
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: col.dot }}></span>
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: col.dot }}></span>
                       <span className="truncate max-w-[120px]">{p.name}</span>
                       <button
                         onClick={() => removeFriend(p.id, p.name)}
-                        className="ml-1 btn-icon btn-icon-danger"
-                        style={{ width: '24px', height: '24px' }}
+                        className="ml-0.5"
+                        style={{ width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: 'rgba(255, 66, 69, 0.15)', color: '#FF8A8D', border: 'none', cursor: 'pointer' }}
                         aria-label={`Remove ${p.name}`}
                       >
-                        <X size={12} />
+                        <X size={10} />
                       </button>
                     </span>
                   );
                 })}
                 {!allParticipants.length && (
-                  <div className="rounded-full border border-slate-700/70 bg-slate-950/70 px-4 py-1.5 text-sm text-slate-300">
+                  <div className="rounded-full border border-slate-700/70 bg-slate-950/70 px-3 py-1 text-xs text-slate-300">
                     No participants yet. Add your friends above.
                   </div>
                 )}
@@ -1533,44 +1535,46 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
               </div>
 
               {/* OCR Reader - always mounted so ref is available */}
-              <OcrReader
-                ref={ocrReaderRef}
-                onParse={handleOcrItems}
-                onError={handleOcrError}
-                onStart={() => setShowItemModal(false)}
-                compact
-              />
+              <div className="mb-4">
+                <OcrReader
+                  ref={ocrReaderRef}
+                  onParse={handleOcrItems}
+                  onError={handleOcrError}
+                  onStart={() => setShowItemModal(false)}
+                  compact
+                />
+              </div>
 
               {bill.items.length === 0 ? (
-                <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-900/20 via-slate-900/70 to-teal-900/20 card-padding shadow-xl backdrop-blur text-center">
-                  <div className="mx-auto max-w-md space-y-4">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-500/40">
-                      <Receipt size={32} className="text-emerald-300" />
+                <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-900/20 via-slate-900/70 to-teal-900/20 p-4 shadow-xl backdrop-blur text-center">
+                  <div className="mx-auto max-w-md space-y-3">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/40">
+                      <Receipt size={24} className="text-emerald-300" />
                     </div>
-                    <h3 className="text-xl font-semibold text-white">Ready to Split a Bill?</h3>
-                    <p className="text-sm text-slate-300 leading-relaxed">
+                    <h3 className="text-lg font-semibold text-white">Ready to Split a Bill?</h3>
+                    <p className="text-xs text-slate-300 leading-relaxed">
                       Add participants above, then scan a receipt or manually add items to start splitting your bill fairly among friends.
                     </p>
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center pt-1">
                       <button
                         onClick={() => setCameraOverlayOpen(true)}
-                        className="btn-apple btn-primary"
+                        className="inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-emerald-900/40 text-emerald-200 border border-emerald-500/40 hover:bg-emerald-900/60 transition-all"
                       >
-                        <ScanText size={18} />
+                        <ScanText size={16} />
                         Scan Receipt
                       </button>
                       <button
                         onClick={() => ocrReaderRef.current?.open?.()}
-                        className="btn-apple btn-secondary"
+                        className="inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-slate-800/70 text-slate-200 border border-slate-600/40 hover:bg-slate-700/70 transition-all"
                       >
-                        <Upload size={18} />
+                        <Upload size={16} />
                         Upload Bill
                       </button>
                       <button
                         onClick={() => setShowItemModal(true)}
-                        className="btn-apple btn-secondary"
+                        className="inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-slate-800/70 text-slate-200 border border-slate-600/40 hover:bg-slate-700/70 transition-all"
                       >
-                        <Plus size={18} />
+                        <Plus size={16} />
                         Add Item
                       </button>
                     </div>
