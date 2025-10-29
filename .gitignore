@@ -95,4 +95,3 @@ screenshots/
 
 # Icon migration artifacts
 src/icons.tsx.backup
-src/pages/IconComparisonPage.tsx
