@@ -24,6 +24,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@supabase/supabase-js": "^2.57.2",
     "bootstrap-icons": "^1.13.1",
+    "canvas-confetti": "^1.9.4",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.545.0",
     "mingcute_icon": "^2.9.6",

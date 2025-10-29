@@ -271,7 +271,7 @@ export default function BillDetailPage(): JSX.Element {
   };
 
   return (
-    <div className="mx-auto max-w-5xl p-6 space-y-4 text-slate-100">
+    <div className="app-container p-6 space-y-4 text-slate-100">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Link
           to="/history"

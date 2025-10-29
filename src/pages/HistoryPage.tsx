@@ -68,28 +68,37 @@ function getUniqueParticipants(payload) {
   return Array.from(participantSet);
 }
 
+const BILLS_PER_PAGE = 20;
+
 export default function HistoryPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [hasMore, setHasMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
 
+  // Initial load
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
         // RLS automatically filters by user - no need for getUser() first
-        // Use .select() with specific fields to reduce payload size
+        // Fetch one extra to check if there are more pages
         const { data, error } = await supabase
           .from("bills")
           .select("id, title, currency, payload, created_at")
           .order("created_at", { ascending: false })
-          .limit(50); // Reduced limit for faster initial load
+          .limit(BILLS_PER_PAGE + 1);
 
         if (error) throw error;
 
         if (!cancelled) {
-          setRows(data ?? []);
+          const hasMoreResults = data && data.length > BILLS_PER_PAGE;
+          setHasMore(hasMoreResults);
+          setRows(hasMoreResults ? data.slice(0, BILLS_PER_PAGE) : (data ?? []));
+          setCurrentPage(0);
         }
       } catch (err) {
         console.error("History fetch failed:", err);
@@ -103,6 +112,35 @@ export default function HistoryPage() {
       cancelled = true;
     };
   }, []);
+
+  // Load more bills
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const offset = nextPage * BILLS_PER_PAGE;
+
+      // Fetch one extra to check if there are more pages
+      const { data, error } = await supabase
+        .from("bills")
+        .select("id, title, currency, payload, created_at")
+        .order("created_at", { ascending: false })
+        .range(offset, offset + BILLS_PER_PAGE);
+
+      if (error) throw error;
+
+      const hasMoreResults = data && data.length > BILLS_PER_PAGE;
+      setHasMore(hasMoreResults);
+      setRows(prev => [...prev, ...(hasMoreResults ? data.slice(0, BILLS_PER_PAGE) : (data ?? []))]);
+      setCurrentPage(nextPage);
+    } catch (err) {
+      console.error("Load more failed:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const table = useMemo(
     () =>
@@ -131,7 +169,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl page-container space-y-6 text-slate-100">
+    <div className="app-container page-container space-y-6 text-slate-100">
       <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -160,49 +198,64 @@ export default function HistoryPage() {
           No bills yet. Save a split from the main page to see it here.
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((r) => (
-            <Link
-              key={r.id}
-              to={`/history/${r.id}`}
-              className="flex flex-col gap-3 rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur transition hover:border-emerald-600/50 hover:bg-slate-900/80"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-semibold text-white">{r.title || "Untitled"}</div>
-                  <div className="mt-1 flex items-center gap-2 text-sm text-emerald-200/80">
-                    <Clock3 size={14} />
-                    <span>{new Date(r.created_at).toLocaleString()}</span>
-                  </div>
-                  {r.payload?.bill?.date && (
-                    <div className="text-xs text-slate-400">
-                      Bill date: {new Date(r.payload.bill.date).toLocaleDateString()}
+        <>
+          <div className="space-y-3">
+            {filtered.map((r) => (
+              <Link
+                key={r.id}
+                to={`/history/${r.id}`}
+                className="flex flex-col gap-3 rounded-3xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-xl backdrop-blur transition hover:border-emerald-600/50 hover:bg-slate-900/80"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-base font-semibold text-white">{r.title || "Untitled"}</div>
+                    <div className="mt-1 flex items-center gap-2 text-sm text-emerald-200/80">
+                      <Clock3 size={14} />
+                      <span>{new Date(r.created_at).toLocaleString()}</span>
                     </div>
-                  )}
+                    {r.payload?.bill?.date && (
+                      <div className="text-xs text-slate-400">
+                        Bill date: {new Date(r.payload.bill.date).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-start gap-1 sm:items-end">
+                    <span className="text-xs uppercase tracking-wide text-emerald-200/70">Total</span>
+                    <span className="text-lg font-bold text-emerald-300">{money(r.total, r.currency || "MVR")}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-start gap-1 sm:items-end">
-                  <span className="text-xs uppercase tracking-wide text-emerald-200/70">Total</span>
-                  <span className="text-lg font-bold text-emerald-300">{money(r.total, r.currency || "MVR")}</span>
-                </div>
-              </div>
-              {r.participants && r.participants.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {r.participants.map((name) => {
-                    const color = colorForName(name);
-                    return (
-                      <span
-                        key={name}
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${color.bg} ${color.border} ${color.text}`}
-                      >
-                        {name}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </Link>
-          ))}
-        </div>
+                {r.participants && r.participants.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {r.participants.map((name) => {
+                      const color = colorForName(name);
+                      return (
+                        <span
+                          key={name}
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${color.bg} ${color.border} ${color.text}`}
+                        >
+                          {name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </Link>
+            ))}
+          </div>
+
+          {/* Load More Button - only show when not searching and there are more bills */}
+          {!searchTerm && hasMore && (
+            <div className="flex justify-center pt-4 pb-6">
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="btn-apple btn-secondary min-w-[200px]"
+              >
+                {loadingMore ? "Loading..." : `Load More (${rows.length} of many)`}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

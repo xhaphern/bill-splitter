@@ -337,7 +337,7 @@ export default function FriendsPage() {
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-5xl page-container">
+      <div className="app-container page-container">
         <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding text-center shadow-xl backdrop-blur">
           <h1 className="mb-2 text-2xl font-semibold text-white">Friends</h1>
           <p className="mb-6 text-sm text-emerald-200/70">
@@ -356,7 +356,7 @@ export default function FriendsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl page-container space-y-6 text-slate-100">
+    <div className="app-container page-container space-y-6 text-slate-100">
       {/* Add a friend (moved to top) */}
       <div className="rounded-3xl border border-slate-700/60 bg-slate-900/70 card-padding shadow-xl backdrop-blur">
         <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-emerald-200">

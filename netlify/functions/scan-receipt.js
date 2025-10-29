@@ -43,16 +43,21 @@ function parseImagePayload(image) {
   };
 }
 
+// Helper function to calculate subtotal from items
+function calculateSubtotal(items) {
+  return items.reduce((sum, item) => {
+    const qty = Number(item.qty) || 1;
+    const price = Number(item.price) || 0;
+    return sum + (qty * price);
+  }, 0);
+}
+
 function validateAndFixItems(items, subtotal) {
   if (!Array.isArray(items) || items.length === 0) return items;
   if (!subtotal || subtotal <= 0) return items;
 
   // Calculate sum using current prices
-  const calculatedSubtotal = items.reduce((sum, item) => {
-    const qty = Number(item.qty) || 1;
-    const price = Number(item.price) || 0;
-    return sum + (qty * price);
-  }, 0);
+  const calculatedSubtotal = calculateSubtotal(items);
 
   const difference = Math.abs(calculatedSubtotal - subtotal);
   const tolerance = subtotal * 0.02; // 2% tolerance for rounding
@@ -81,11 +86,7 @@ function validateAndFixItems(items, subtotal) {
   });
 
   // Check if this fixes the subtotal
-  const newCalculatedSubtotal = fixedItems.reduce((sum, item) => {
-    const qty = Number(item.qty) || 1;
-    const price = Number(item.price) || 0;
-    return sum + (qty * price);
-  }, 0);
+  const newCalculatedSubtotal = calculateSubtotal(fixedItems);
 
   const newDifference = Math.abs(newCalculatedSubtotal - subtotal);
 

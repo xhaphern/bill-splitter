@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, getRedirectUrl } from "../supabaseClient";
 import { Github, LogOut, UserCircle, Google, Receipt, SaveIcon } from "../icons";
@@ -14,6 +14,7 @@ interface ProfilePageProps {
 
 export default function ProfilePage({ session }: ProfilePageProps): JSX.Element {
   const location = useLocation();
+  const navigate = useNavigate();
   const state = location.state as LocationState | null;
 
   const [displayName, setDisplayName] = useState<string>(() => {
@@ -160,7 +161,7 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
   const { user } = session;
 
   return (
-    <div className="mx-auto max-w-5xl page-container space-y-6">
+    <div className="app-container page-container space-y-6">
       <header className="mb-4">
         <h2 className="flex flex-wrap items-center gap-3 text-xl font-semibold text-white">
           <UserCircle size={20} className="text-emerald-300" />
@@ -199,6 +200,7 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
             />
           </label>
+
           <button
             type="button"
             onClick={handleSaveProfile}
@@ -216,6 +218,29 @@ export default function ProfilePage({ session }: ProfilePageProps): JSX.Element 
           <LogOut size={18} />
           Sign out
         </button>
+
+        {/* Dev-only menu - only visible in development mode */}
+        {import.meta.env.DEV && (
+          <div className="mt-6 space-y-3 border-t border-white/10 pt-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-amber-400/80">
+              Developer Menu
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/snackbar-showcase")}
+              className="btn-apple btn-secondary w-full"
+            >
+              Snackbar Showcase
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/icon-comparison")}
+              className="btn-apple btn-secondary w-full"
+            >
+              Icon Comparison
+            </button>
+          </div>
+        )}
       </div>
 
     </div>
