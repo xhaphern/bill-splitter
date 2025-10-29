@@ -243,8 +243,8 @@ export default function HistoryPage() {
             ))}
           </div>
 
-          {/* Load More Button - only show when not searching and there are more bills */}
-          {!searchTerm && hasMore && (
+          {/* Load More Button - show when there are more bills */}
+          {hasMore && (
             <div className="flex justify-center pt-4 pb-6">
               <button
                 onClick={loadMore}

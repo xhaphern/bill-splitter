@@ -68,13 +68,14 @@ function validateAndFixItems(items, subtotal) {
   }
 
   // Try interpreting prices as line totals instead
+  const LINE_TOTAL_TOLERANCE = 0.01;
   const fixedItems = items.map(item => {
     const qty = Number(item.qty) || 1;
     const price = Number(item.price) || 0;
-    const lineTotal = Number(item.lineTotal) || (qty * price);
+    const lineTotal = item.lineTotal != null ? Number(item.lineTotal) : (qty * price);
 
     // If lineTotal exists and differs from qty*price, use lineTotal as source of truth
-    if (lineTotal > 0 && Math.abs(lineTotal - (qty * price)) > 0.01) {
+    if (lineTotal > 0 && Math.abs(lineTotal - (qty * price)) > LINE_TOTAL_TOLERANCE) {
       return {
         ...item,
         price: qty > 0 ? lineTotal / qty : price,
@@ -90,8 +91,8 @@ function validateAndFixItems(items, subtotal) {
 
   const newDifference = Math.abs(newCalculatedSubtotal - subtotal);
 
-  // If the fix improved the match, use fixed items
-  if (newDifference < difference) {
+  // If the fix improved the match AND is within tolerance, use fixed items
+  if (newDifference < difference && newDifference <= tolerance) {
     return fixedItems;
   }
 

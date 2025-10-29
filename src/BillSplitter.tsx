@@ -612,6 +612,16 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' | 'info' = 's
   notifyTimeoutRef.current = window.setTimeout(() => setToast(null), 3000);
 }
 
+  // Cleanup notification timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (notifyTimeoutRef.current !== null) {
+        window.clearTimeout(notifyTimeoutRef.current);
+        notifyTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   const [showOcrModal, setShowOcrModal] = useState(false);
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [scannedText, setScannedText] = useState<string>("");
