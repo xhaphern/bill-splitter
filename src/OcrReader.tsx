@@ -402,7 +402,7 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         }
         console.error("OCR scan failed", err);
 
-        // Clear any ongoing progress animation on error
+        // Force stop any ongoing progress animation
         if (progressAnimationRef.current) {
           clearInterval(progressAnimationRef.current);
           progressAnimationRef.current = null;
@@ -411,7 +411,10 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
         setHasError(true);
         setStatus("Failed");
         setStage("Scan failed");
-        setProgress(1); // Show full bar in red to indicate completion with error
+
+        // Force reset progress to 0 after clearing animation
+        setTimeout(() => setProgress(0), 0);
+
         onError?.("Failed to scan receipt. Please try again with a clearer image.");
 
         // Keep error state visible - don't auto-reset
@@ -468,7 +471,7 @@ const OcrReader = forwardRef<OcrReaderHandle, OcrReaderProps>(
     const rawProgress = useMemo(() => Math.min(Math.max(progress, 0), 1), [progress]);
     const percentage = Math.round(rawProgress * 100);
     const barWidth = rawProgress > 0 || isProcessing ? Math.min(100, Math.max(12, percentage)) : 0;
-    const showProgress = isProcessing || rawProgress > 0;
+    const showProgress = (isProcessing || rawProgress > 0) && !hasError;
     const stageLabel = stage || status || "Working…";
 
     useEffect(

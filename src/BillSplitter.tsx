@@ -29,10 +29,11 @@ import { fetchCircles, fetchCircleMembers, fetchCircleMemberCounts } from "./api
 import { supabase } from "./supabaseClient";
 import OcrReader from "./OcrReader";
 import CameraOverlay from "./components/CameraOverlay";
+import Snackbar from "./components/Snackbar";
 
 const STORAGE_FRIENDS = "bs_friends_v1";
 const STORAGE_BILL   = "bs_bill_v1";
-const currencySymbols: Record<string, string> = { MVR: "MVR ", USD: "$", EUR: "€", GBP: "£", INR: "₹", SGD: "S$", AUD: "A$", CAD: "C$", JPY: "¥" };
+const currencySymbols: Record<string, string> = { MVR: "ރ.", USD: "$", EUR: "€", GBP: "£", INR: "₹", SGD: "S$", AUD: "A$", CAD: "C$", JPY: "¥" };
 const fmt = (n: number | string | null | undefined) => (Number(n) || 0).toFixed(2);
 const EMPTY_SCAN_SUMMARY = {
   subtotal: null,
@@ -600,22 +601,31 @@ export default function BillSplitter({ session }: { session: Session | null }) {
   const downloadMenuRef = useRef(null);
   const ocrReaderRef = useRef(null);
 
-  // ---- Toast (nice popup) ----
-const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'warning' | 'error' } | null>(null);
-const notifyTimeoutRef = useRef<number | null>(null);
-function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') {
-  setToast({ msg, kind });
-  if (notifyTimeoutRef.current !== null) {
-    window.clearTimeout(notifyTimeoutRef.current);
+  // ---- Snackbar notifications ----
+  const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'warning' | 'error' | 'info' } | null>(null);
+  const notifyTimeoutRef = useRef<number | null>(null);
+  function notify(msg: string, kind: 'success' | 'warning' | 'error' | 'info' = 'success') {
+    setToast({ msg, kind });
+    if (notifyTimeoutRef.current !== null) {
+      window.clearTimeout(notifyTimeoutRef.current);
+    }
+    notifyTimeoutRef.current = window.setTimeout(() => setToast(null), 3000);
   }
-  notifyTimeoutRef.current = window.setTimeout(() => setToast(null), 2600);
-}
+
+  // Cleanup notification timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (notifyTimeoutRef.current !== null) {
+        window.clearTimeout(notifyTimeoutRef.current);
+        notifyTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const [showOcrModal, setShowOcrModal] = useState(false);
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [scannedText, setScannedText] = useState<string>("");
   const [scannedSummary, setScannedSummary] = useState<ScanSummary>(EMPTY_SCAN_SUMMARY);
-
   const mergeScannedItems = (items: ScannedItem[]): ScannedItem[] => {
     const merged: ScannedItem[] = [];
     items.forEach((item) => {
@@ -1245,8 +1255,8 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
   const payerAccount = payerParticipant?.account || "";
 
   return (
-    <div className="bg-gradient-to-b from-[#05080f] via-[#070c14] to-[#05080f] px-4 pt-4 pb-20">
-      <div className="max-w-5xl mx-auto">
+    <div className="px-4 pt-4 pb-20">
+      <div className="w-full">
         {/* Header small */}
         <div className="text-center mb-3">
           <h1 className="text-3xl font-bold text-white mb-1 flex items-center justify-center gap-3">
@@ -2367,23 +2377,13 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' = 'success') 
         />
       )}
 
-      {/* Toast */}
+      {/* Snackbar notifications */}
       {toast && (
-        <div className={`fixed bottom-5 right-5 z-[60] rounded-xl border px-4 py-3 shadow-lg backdrop-blur-sm
-                         ${toast.kind === 'success' ? 'bg-emerald-900/90 border-emerald-700 text-emerald-100' : ''}
-                         ${toast.kind === 'warning' ? 'bg-amber-900/90 border-amber-700 text-amber-100' : ''}
-                         ${toast.kind === 'error' ? 'bg-red-900/90 border-red-700 text-red-100' : ''}
-                         ${toast.kind === 'info' ? 'bg-blue-900/90 border-blue-700 text-blue-100' : ''}`}
-        >
-          <div className="flex items-center gap-2">
-            {toast.kind === 'success' && <CheckCircle2 size={18} className="opacity-90" />}
-            {toast.kind === 'warning' && <AlertTriangle size={18} className="opacity-90" />}
-            {toast.kind === 'error' && <XCircle size={18} className="opacity-90" />}
-            {toast.kind === 'info' && <Receipt size={18} className="opacity-90" />}
-            <span className="text-sm font-medium">{toast.msg}</span>
-            <button onClick={() => setToast(null)} className="ml-2 text-xs opacity-80 hover:opacity-100 underline">Dismiss</button>
-          </div>
-        </div>
+        <Snackbar
+          message={toast.msg}
+          kind={toast.kind}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   </div>

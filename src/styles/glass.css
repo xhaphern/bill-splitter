@@ -38,30 +38,6 @@
   --safe-area-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); /* Tab bar + safe area */
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    /* Light mode - Liquid Glass with emerald accents */
-    --glass-bg-base: #f7f7f7;
-    --glass-bg-overlay: rgba(255, 255, 255, 0.5);
-    --glass-fill: #333333;
-    --glass-border: rgba(60, 80, 72, 0.25);
-    --glass-highlight: rgba(255, 255, 255, 0.7);
-    --glass-shadow: rgba(18, 34, 30, 0.25);
-    --glass-blur-tint: rgba(0, 0, 0, 0.04);
-
-    /* Emerald green accent (lighter for light mode) */
-    --accent-color: #059669;
-    --accent-light: #10b981;
-    --accent-glow: rgba(5, 150, 105, 0.18);
-
-    /* Tab states - increased visibility */
-    --tab-icon-inactive: rgba(64, 64, 64, 0.85);
-    --tab-text-inactive: rgba(64, 64, 64, 0.80);
-    --tab-text-active: var(--accent-color);
-    --tab-selection-bg: #ededed;
-  }
-}
-
 .tabbar-stack {
   width: min(100%, 420px);
   display: flex;
@@ -104,7 +80,7 @@
 .tabbar-surface {
   position: relative;
   flex: 1;
-  height: 68px;
+  height: 58px;
   border-radius: 296px;
   isolation: isolate;
   padding: 0;
@@ -156,7 +132,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  height: 68px;
+  height: 58px;
 }
 
 .tabbar-slot {
@@ -170,12 +146,12 @@
   position: relative;
   display: inline-flex;
   width: 76px;
-  height: 68px;
+  height: 58px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1px;
-  padding: 6px 8px 7px;
+  padding: 4px 8px 5px;
   border-radius: 100px;
   color: var(--tab-text-muted);
   text-decoration: none;
@@ -237,7 +213,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 60px;
+  width: 28px;
   height: 28px;
 }
 
@@ -340,8 +316,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 68px;
-  width: 68px;
+  height: 56px;
+  width: 56px;
   border-radius: 296px;
   isolation: isolate;
   border: 0.5px solid var(--glass-border);
@@ -366,18 +342,14 @@
 }
 
 .tabbar-scan-inner {
-  height: 48px;
-  width: 48px;
+  height: 40px;
+  width: 40px;
   border-radius: inherit;
   display: grid;
   place-items: center;
-  /* Light subtle background matching tab style */
-  background: radial-gradient(
-    circle at 50% 40%,
-    rgba(255, 255, 255, 0.15) 0%,
-    rgba(255, 255, 255, 0.08) 100%
-  );
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  /* Subtle background matching inactive tab style */
+  background: transparent;
+  border: none;
   z-index: 1;
 }
 
@@ -408,35 +380,37 @@
   color: rgba(255, 255, 255, 0.95);
 }
 
-/* Apple-style Buttons */
+/* Apple-style Buttons - Pill Shape */
 .btn-apple {
   display: inline-flex;
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  padding: 10px 16px;
-  gap: 4px;
+  padding: 10px 18px;
+  gap: 6px;
   border-radius: 1000px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
   font-style: normal;
-  font-weight: 400;
-  font-size: 15px;
-  line-height: 20px;
-  letter-spacing: -0.43px;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 18px;
+  letter-spacing: -0.2px;
   text-align: center;
   transition: transform 160ms ease, background 160ms ease, opacity 160ms ease;
   outline: none;
-  border: none;
   cursor: pointer;
+  border: 1px solid;
+  height: 42px;
+  box-sizing: border-box;
 }
 
 .btn-apple:hover {
-  transform: translateY(-1px);
+  transform: scale(1.02);
   opacity: 0.9;
 }
 
 .btn-apple:active {
-  transform: translateY(0);
+  transform: scale(0.98);
   opacity: 0.85;
 }
 
@@ -447,32 +421,35 @@
 
 /* Primary button (emerald) */
 .btn-primary {
-  background: rgba(16, 185, 129, 0.14);
-  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
 }
 
 .btn-primary:hover {
-  background: rgba(16, 185, 129, 0.20);
+  background: rgba(16, 185, 129, 0.22);
 }
 
 /* Destructive button (red) */
 .btn-destructive {
-  background: rgba(255, 66, 69, 0.14);
-  color: #FF4245;
+  background: rgba(255, 66, 69, 0.15);
+  border-color: rgba(255, 66, 69, 0.4);
+  color: #FF8A8D;
 }
 
 .btn-destructive:hover {
-  background: rgba(255, 66, 69, 0.20);
+  background: rgba(255, 66, 69, 0.22);
 }
 
 /* Secondary button (gray) */
 .btn-secondary {
-  background: rgba(142, 142, 147, 0.14);
-  color: #8E8E93;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .btn-secondary:hover {
-  background: rgba(142, 142, 147, 0.20);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* Icon buttons - circular, compact */

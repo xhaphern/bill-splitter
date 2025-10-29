@@ -177,6 +177,15 @@
     opacity: 1;
   }
 }
+
+@keyframes drawCheck {
+  from {
+    stroke-dashoffset: 15;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
 /* --- Page shell spacing (safe above bottom tab bar) --- */
 .page-shell{
   padding-top: 1rem;                /* ~pt-4 */
@@ -213,5 +222,61 @@
   #root > section {
     padding-left: 1.25rem;
     padding-right: 1.25rem;
+  }
+}
+
+/* App background */
+.app-bg {
+  @apply min-h-screen text-slate-100;
+  background: linear-gradient(to bottom right, #05070b, #0b111a, #05070b);
+}
+
+.app-header-text {
+  @apply text-white;
+}
+
+/* Apple Device Responsive Layout with Orientation Support */
+
+/* Mobile Portrait (iPhone) - Full width, stays perfect as-is */
+.app-container {
+  width: 100%;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Mobile Landscape (iPhone rotated) - Slightly constrained for better readability */
+@media (max-width: 767px) and (orientation: landscape) {
+  .app-container {
+    max-width: 85%;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/* Tablet Portrait (iPad vertical) - Use most of screen */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  .app-container {
+    max-width: 85%;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* Tablet Landscape (iPad horizontal) - More width, centered */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+  .app-container {
+    max-width: 95%;
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}
+
+/* Laptop/Desktop - Centered with max width for readability */
+@media (min-width: 1025px) {
+  .app-container {
+    max-width: 1200px;
+    padding-left: 3rem;
+    padding-right: 3rem;
   }
 }

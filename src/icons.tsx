@@ -80,6 +80,8 @@ export const FileText = (props: any) => <IconWrapper icon="bi:file-text" {...pro
 export const Calendar = (props: any) => <IconWrapper icon="bi:calendar" {...props} />;
 export const Trash2 = (props: any) => <IconWrapper icon="bi:trash" {...props} />;
 export const ScanText = (props: any) => <IconWrapper icon="bi:upc-scan" {...props} />;
+export const Sun = (props: any) => <IconWrapper icon="bi:sun" {...props} />;
+export const Moon = (props: any) => <IconWrapper icon="bi:moon-fill" {...props} />;
 
 // Loading spinner - Primary option (blocks-shuffle-3)
 export const Loader2 = (props: any) => <IconWrapper icon="svg-spinners:blocks-shuffle-3" {...props} />;
@@ -92,3 +94,6 @@ export const LoaderArrowRepeat = (props: any) => <IconWrapper icon="bi:arrow-rep
 
 // Keep Google icon from custom component
 export { Google } from "./icons/Google";
+
+// Currency symbols
+export { Rufiyaa } from "./icons/Rufiyaa";

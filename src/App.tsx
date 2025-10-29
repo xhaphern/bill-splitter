@@ -18,6 +18,8 @@ const FriendsPage = lazy(() => import("./pages/FriendsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const BillDetailPage = lazy(() => import("./pages/BillDetailPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const SnackbarShowcase = lazy(() => import("./pages/SnackbarShowcase"));
+const IconComparisonPage = lazy(() => import("./pages/IconComparisonPage"));
 
 // Preload functions for eager loading
 const preloadHistoryPage = () => import("./pages/HistoryPage");
@@ -40,33 +42,28 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
 
-  // Preload routes after initial render for faster navigation
+  // Preload routes shortly after mount for faster navigation
   useEffect(() => {
-    // Use requestIdleCallback if available, otherwise setTimeout
-    const schedulePreload = (callback: () => void) => {
-      if ('requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(callback, { timeout: 2000 });
-      } else {
-        setTimeout(callback, 1000);
-      }
+    // Parallel preloading for all authenticated routes
+    const preloadAll = () => {
+      Promise.all([
+        preloadHistoryPage(),
+        preloadFriendsPage(),
+        preloadProfilePage()
+      ]).catch((error) => {
+        // Routes will load on demand if preload fails
+        if (import.meta.env.DEV) {
+          console.warn('Route preloading failed, will load on demand:', error);
+        }
+      });
     };
 
-    // Preload all routes in sequence with small delays using startTransition for non-blocking
-    schedulePreload(() => {
-      startTransition(() => {
-        preloadHistoryPage();
-        setTimeout(() => {
-          startTransition(() => {
-            preloadFriendsPage();
-            setTimeout(() => {
-              startTransition(() => {
-                preloadProfilePage();
-              });
-            }, 100);
-          });
-        }, 100);
-      });
-    });
+    // Preload during idle time or after brief delay
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(preloadAll, { timeout: 500 });
+    } else {
+      setTimeout(preloadAll, 100);
+    }
   }, []);
 
   useEffect(() => {
@@ -120,31 +117,26 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-[#05070b] via-[#0b111a] to-[#05070b] text-slate-100">
-        <header className="mx-auto flex max-w-5xl items-center justify-between page-container" style={{paddingTop: '12px', paddingBottom: '12px'}}>
-          <div className="text-lg font-semibold tracking-wide text-white">
+      <div className="app-bg">
+        <header className="app-container flex items-center justify-between page-container" style={{paddingTop: '12px', paddingBottom: '12px'}}>
+          <div className="text-lg font-semibold tracking-wide app-header-text">
             Bill Splitter
           </div>
         </header>
 
         {initializing ? (
-          <main className="mx-auto max-w-5xl page-container">
+          <main className="app-container page-container">
             <div className="min-h-[40vh] grid place-items-center text-slate-300">
               Loading…
             </div>
           </main>
         ) : (
-          <main className="mx-auto max-w-5xl page-container">
-            <Suspense
-              fallback={
-                <div className="min-h-[30vh] grid place-items-center">
-                  <div className="flex flex-col items-center gap-3 opacity-0 animate-[fadeIn_0.15s_ease-in_forwards]">
-                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-400" />
-                    <span className="text-sm text-slate-400">Loading…</span>
-                  </div>
-                </div>
-              }
-            >
+          <main className="app-container page-container">
+            <Suspense fallback={
+              <div className="min-h-[40vh] grid place-items-center text-slate-300">
+                Loading…
+              </div>
+            }>
               <Routes>
                 <Route path="/" element={<Navigate to="/split" replace />} />
                 <Route path="/split" element={<BillSplitter session={session} />} />
@@ -200,6 +192,13 @@ export default function App() {
                     </PrivateRoute>
                   }
                 />
+                {/* Dev-only routes - only available in development */}
+                {import.meta.env.DEV && (
+                  <>
+                    <Route path="/snackbar-showcase" element={<SnackbarShowcase />} />
+                    <Route path="/icon-comparison" element={<IconComparisonPage />} />
+                  </>
+                )}
                 <Route path="*" element={<Navigate to="/split" replace />} />
               </Routes>
             </Suspense>
