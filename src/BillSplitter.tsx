@@ -602,15 +602,15 @@ export default function BillSplitter({ session }: { session: Session | null }) {
   const ocrReaderRef = useRef(null);
 
   // ---- Snackbar notifications ----
-const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'warning' | 'error' | 'info' } | null>(null);
-const notifyTimeoutRef = useRef<number | null>(null);
-function notify(msg: string, kind: 'success' | 'warning' | 'error' | 'info' = 'success') {
-  setToast({ msg, kind });
-  if (notifyTimeoutRef.current !== null) {
-    window.clearTimeout(notifyTimeoutRef.current);
+  const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'warning' | 'error' | 'info' } | null>(null);
+  const notifyTimeoutRef = useRef<number | null>(null);
+  function notify(msg: string, kind: 'success' | 'warning' | 'error' | 'info' = 'success') {
+    setToast({ msg, kind });
+    if (notifyTimeoutRef.current !== null) {
+      window.clearTimeout(notifyTimeoutRef.current);
+    }
+    notifyTimeoutRef.current = window.setTimeout(() => setToast(null), 3000);
   }
-  notifyTimeoutRef.current = window.setTimeout(() => setToast(null), 3000);
-}
 
   // Cleanup notification timeout on unmount
   useEffect(() => {
@@ -626,7 +626,6 @@ function notify(msg: string, kind: 'success' | 'warning' | 'error' | 'info' = 's
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [scannedText, setScannedText] = useState<string>("");
   const [scannedSummary, setScannedSummary] = useState<ScanSummary>(EMPTY_SCAN_SUMMARY);
-
   const mergeScannedItems = (items: ScannedItem[]): ScannedItem[] => {
     const merged: ScannedItem[] = [];
     items.forEach((item) => {

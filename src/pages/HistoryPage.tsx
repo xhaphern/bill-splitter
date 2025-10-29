@@ -69,6 +69,7 @@ function getUniqueParticipants(payload) {
 }
 
 const BILLS_PER_PAGE = 20;
+const MAX_INITIAL_FETCH = BILLS_PER_PAGE + 1;
 
 export default function HistoryPage() {
   const [rows, setRows] = useState([]);
@@ -86,11 +87,12 @@ export default function HistoryPage() {
       try {
         // RLS automatically filters by user - no need for getUser() first
         // Fetch one extra to check if there are more pages
+        // Use .select() with specific fields to reduce payload size
         const { data, error } = await supabase
           .from("bills")
           .select("id, title, currency, payload, created_at")
           .order("created_at", { ascending: false })
-          .limit(BILLS_PER_PAGE + 1);
+          .limit(MAX_INITIAL_FETCH);
 
         if (error) throw error;
 
