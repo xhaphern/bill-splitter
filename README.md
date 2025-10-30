@@ -10,6 +10,7 @@ Bill Splitter is a Vite + React single-page app for tracking shared expenses, sa
 - Persist data to Supabase tables for signed-in users; fall back to local state for anonymous usage.
 - Export bill summaries, download snapshots, and revisit history saved in Supabase.
 - OAuth sign-in (GitHub/Google) with redirect support for Netlify and other SPA hosts.
+- Dedicated `/icon-comparison` gallery to compare bundled icons against popular packs when iterating on UI.
 
 ## Tech Stack
 
