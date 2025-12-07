@@ -100,7 +100,31 @@ function validateAndFixItems(items, subtotal) {
   return items;
 }
 
-async function scanWithGemini(imagePayload) {
+// Helper function to sleep for a given number of milliseconds
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Helper function to extract retry delay from error response
+function extractRetryDelay(errorText) {
+  try {
+    const errorJson = JSON.parse(errorText);
+    const retryInfo = errorJson.error?.details?.find(
+      detail => detail["@type"] === "type.googleapis.com/google.rpc.RetryInfo"
+    );
+    if (retryInfo?.retryDelay) {
+      const delayStr = retryInfo.retryDelay;
+      const seconds = parseFloat(delayStr);
+      return isNaN(seconds) ? null : seconds * 1000; // Convert to milliseconds
+    }
+  } catch {
+    // If parsing fails, return null
+  }
+  return null;
+}
+
+async function scanWithGemini(imagePayload, retryCount = 0) {
+  const MAX_RETRIES = 3;
   const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("VITE_GEMINI_API_KEY not configured");
 
@@ -112,7 +136,7 @@ async function scanWithGemini(imagePayload) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -144,8 +168,27 @@ async function scanWithGemini(imagePayload) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Gemini API error: ${response.status} ${error}`);
+      const errorText = await response.text();
+
+      // Handle rate limiting (429) with retry logic
+      if (response.status === 429 && retryCount < MAX_RETRIES) {
+        const retryDelay = extractRetryDelay(errorText);
+        const backoffDelay = retryDelay || Math.pow(2, retryCount) * 1000; // Use API's delay or exponential backoff
+
+        console.log(`Rate limit hit, retrying in ${backoffDelay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        await sleep(backoffDelay);
+        return scanWithGemini(imagePayload, retryCount + 1);
+      }
+
+      // If it's a 429 and we've exhausted retries, throw a more helpful error
+      if (response.status === 429) {
+        throw new Error(
+          "Gemini API quota exceeded. The free tier has daily and per-minute limits. " +
+          "Please wait a few minutes and try again, or consider upgrading your API plan at https://ai.google.dev/pricing"
+        );
+      }
+
+      throw new Error(`Gemini API error: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
@@ -268,14 +311,23 @@ export const handler = async (event) => {
 
     // Provide more specific error messages
     let errorMessage = "OCR failed. ";
+    let statusCode = 500;
+
     if (!process.env.VITE_GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
       errorMessage += "VITE_GEMINI_API_KEY is not configured in Netlify environment variables.";
+    } else if (error.message?.includes("quota exceeded")) {
+      // Rate limit error - use 429 status code
+      statusCode = 429;
+      errorMessage = error.message;
+    } else if (error.message?.includes("timeout")) {
+      statusCode = 504;
+      errorMessage += "Request timed out. Please try again.";
     } else {
       errorMessage += error.message || "Unknown error occurred.";
     }
 
     return {
-      statusCode: 500,
+      statusCode,
       headers: { "Content-Type": "application/json", ...corsHeaders },
       body: JSON.stringify({
         error: errorMessage,
